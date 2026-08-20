@@ -1856,405 +1856,421 @@ document.querySelectorAll('.nav-section-title').forEach(el => {
 
 
 // ═══════════════════════════════════════════════════════════
-// COMMENTING + INLINE EDIT SYSTEM
-// Uses localStorage so comments persist across page refreshes
+// ROLE-BASED EDIT + COMMENT SYSTEM
+// Owner  → can edit title, steps, expected result on any card
+// Reviewer → can comment, reply, resolve on any card
+// Both roles see each other's work (edits + comments shared via localStorage)
 // ═══════════════════════════════════════════════════════════
 
-const COMMENT_KEY = 'cg_wiki_comments_v2';
-const EDIT_KEY    = 'cg_wiki_edits_v2';
+const CG_ROLE     = 'cg_wiki_role_v3';
+const CG_COMMENTS = 'cg_wiki_comments_v3';
+const CG_EDITS    = 'cg_wiki_edits_v3';
 
-function loadComments() {
-  try { return JSON.parse(localStorage.getItem(COMMENT_KEY) || '{}'); } catch(e) { return {}; }
-}
-function saveComments(data) {
-  try { localStorage.setItem(COMMENT_KEY, JSON.stringify(data)); } catch(e) {}
-}
-function loadEdits() {
-  try { return JSON.parse(localStorage.getItem(EDIT_KEY) || '{}'); } catch(e) { return {}; }
-}
-function saveEdits(data) {
-  try { localStorage.setItem(EDIT_KEY, JSON.stringify(data)); } catch(e) {}
-}
+let CURRENT_ROLE = localStorage.getItem(CG_ROLE) || null; // 'owner' | 'reviewer' | null
 
-const COLORS = ['#3B82F6','#8B5CF6','#EF4444','#10B981','#F59E0B','#EC4899','#06B6D4','#84CC16'];
-function nameToColor(name) {
-  let hash = 0;
-  for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
-  return COLORS[Math.abs(hash) % COLORS.length];
-}
-function initials(name) {
-  return name.trim().split(/\s+/).map(w => w[0]).join('').toUpperCase().slice(0, 2) || '?';
+function ldJ(k){try{return JSON.parse(localStorage.getItem(k)||'{}')}catch(e){return{}}}
+function svJ(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function ts(){return new Date().toLocaleString();}
+
+// ── AVATAR helpers ────────────────────────────────────────────
+const AVC=['#3B82F6','#8B5CF6','#EF4444','#10B981','#F59E0B','#EC4899','#06B6D4'];
+function avc(n){let h=0;for(let i=0;i<n.length;i++)h=n.charCodeAt(i)+((h<<5)-h);return AVC[Math.abs(h)%AVC.length];}
+function avi(n){return n.trim().split(/\s+/).map(w=>w[0]).join('').toUpperCase().slice(0,2)||'?';}
+
+// ── TOAST ─────────────────────────────────────────────────────
+function wToast(msg){
+  let t=document.getElementById('_wt');
+  if(!t){t=document.createElement('div');t.id='_wt';t.style.cssText='position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#111;color:#fff;padding:8px 20px;border-radius:100px;font-size:12px;font-family:-apple-system,sans-serif;z-index:9999;pointer-events:none;transition:opacity .3s';document.body.appendChild(t);}
+  t.textContent=msg;t.style.opacity='1';clearTimeout(t._t);t._t=setTimeout(()=>t.style.opacity='0',2600);
 }
 
-// ── COMMENT DRAWER ──────────────────────────────────────────
-function getCommentCount(tcId) {
-  const all = loadComments();
-  return (all[tcId] || []).filter(c => !c.resolved).length;
-}
-
-function renderCommentBadge(tcId) {
-  const n = getCommentCount(tcId);
-  if (!n) return '';
-  return `<span style="display:inline-flex;align-items:center;gap:3px;padding:1px 6px;border-radius:4px;font-size:9px;font-weight:700;background:#FEF3C7;color:#92400E;margin-left:6px;vertical-align:middle">💬 ${n}</span>`;
-}
-
-function openCommentDrawer(tcId, tcTitle) {
-  // Remove existing drawer
-  const existing = document.getElementById('comment-drawer');
-  if (existing) existing.remove();
-
-  const all = loadComments();
-  const comments = all[tcId] || [];
-
-  const drawer = document.createElement('div');
-  drawer.id = 'comment-drawer';
-  drawer.style.cssText = `position:fixed;top:0;right:0;width:380px;height:100vh;background:#fff;border-left:1px solid #e1e1e1;z-index:1000;display:flex;flex-direction:column;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;box-shadow:-4px 0 20px rgba(0,0,0,.12)`;
-
-  const cmtHtml = comments.map((c, i) => `
-    <div style="padding:12px 14px;border-bottom:1px solid #f5f5f5;${c.resolved ? 'opacity:.55' : ''}">
-      <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
-        <div style="width:26px;height:26px;border-radius:50%;background:${nameToColor(c.author)};color:#fff;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;flex-shrink:0">${initials(c.author)}</div>
-        <div style="flex:1">
-          <div style="font-size:12px;font-weight:600;color:#222">${escH(c.author)}</div>
-          <div style="font-size:10px;color:#b3b3b3">${c.time}</div>
-        </div>
-        ${c.resolved ? '<span style="font-size:9px;padding:1px 6px;border-radius:3px;background:#EDFAF5;color:#12805C;font-weight:700">Resolved</span>' : `<button onclick="resolveComment('${tcId}',${i})" style="font-size:10px;color:#6e6e6e;background:none;border:1px solid #e1e1e1;border-radius:4px;padding:2px 7px;cursor:pointer">Resolve</button>`}
+// ── ROLE GATE ─────────────────────────────────────────────────
+function showRoleGate(){
+  const old=document.getElementById('_rolegate');if(old)old.remove();
+  const ov=document.createElement('div');
+  ov.id='_rolegate';
+  ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:8000;display:flex;align-items:center;justify-content:center;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif';
+  ov.innerHTML=`
+    <div style="background:#fff;border-radius:14px;width:480px;max-width:94vw;box-shadow:0 12px 48px rgba(0,0,0,.25);overflow:hidden">
+      <div style="background:#1a1a1a;padding:18px 20px">
+        <div style="font-size:11px;color:#888;margin-bottom:4px">Citation Generator — QA Wiki v2</div>
+        <div style="font-size:17px;font-weight:600;color:#fff">How are you reviewing?</div>
+        <div style="font-size:12px;color:#aaa;margin-top:4px">Choose your role — you can switch any time from the top bar</div>
       </div>
-      <div style="font-size:13px;color:#464646;line-height:1.5">${escH(c.text)}</div>
-      ${(c.replies||[]).map(r => `
-        <div style="margin-top:7px;padding:7px 9px;background:#fafafa;border-left:2px solid #e1e1e1;border-radius:0 4px 4px 0">
-          <div style="display:flex;align-items:center;gap:6px;margin-bottom:3px">
-            <div style="width:18px;height:18px;border-radius:50%;background:${nameToColor(r.author)};color:#fff;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;flex-shrink:0">${initials(r.author)}</div>
-            <span style="font-size:11px;font-weight:600;color:#222">${escH(r.author)}</span>
-            <span style="font-size:10px;color:#b3b3b3">${r.time}</span>
+      <div style="padding:20px;display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div onclick="setRole('owner')" style="border:1.5px solid #BFDBFE;border-radius:10px;padding:18px 16px;cursor:pointer;transition:all .15s;background:#F8FBFF" onmouseover="this.style.borderColor='#3B82F6';this.style.background='#EFF6FF'" onmouseout="this.style.borderColor='#BFDBFE';this.style.background='#F8FBFF'">
+          <div style="font-size:22px;margin-bottom:8px">✏️</div>
+          <div style="font-size:14px;font-weight:600;color:#1e40af;margin-bottom:5px">Owner</div>
+          <div style="font-size:11px;color:#6e6e6e;line-height:1.6">Edit title, steps, and expected result on any test case. Changes persist for all visitors.</div>
+          <div style="margin-top:10px;display:flex;flex-direction:column;gap:3px">
+            <div style="font-size:10px;color:#12805C;display:flex;align-items:center;gap:4px"><span>✓</span> Edit any field inline</div>
+            <div style="font-size:10px;color:#12805C;display:flex;align-items:center;gap:4px"><span>✓</span> See all reviewer comments</div>
+            <div style="font-size:10px;color:#12805C;display:flex;align-items:center;gap:4px"><span>✓</span> Export edits and comments</div>
           </div>
-          <div style="font-size:12px;color:#464646">${escH(r.text)}</div>
+        </div>
+        <div onclick="setRole('reviewer')" style="border:1.5px solid #A7F3D0;border-radius:10px;padding:18px 16px;cursor:pointer;transition:all .15s;background:#F8FFFC" onmouseover="this.style.borderColor='#10B981';this.style.background='#ECFDF5'" onmouseout="this.style.borderColor='#A7F3D0';this.style.background='#F8FFFC'">
+          <div style="font-size:22px;margin-bottom:8px">💬</div>
+          <div style="font-size:14px;font-weight:600;color:#065f46;margin-bottom:5px">Reviewer</div>
+          <div style="font-size:11px;color:#6e6e6e;line-height:1.6">Read all test cases and leave comments, flag issues, reply to threads, mark resolved.</div>
+          <div style="margin-top:10px;display:flex;flex-direction:column;gap:3px">
+            <div style="font-size:10px;color:#12805C;display:flex;align-items:center;gap:4px"><span>✓</span> Post comments and replies</div>
+            <div style="font-size:10px;color:#12805C;display:flex;align-items:center;gap:4px"><span>✓</span> Flag issues and clarifications</div>
+            <div style="font-size:10px;color:#aaa;display:flex;align-items:center;gap:4px"><span>–</span> View only for test fields</div>
+          </div>
+        </div>
+      </div>
+    </div>`;
+  document.body.appendChild(ov);
+}
+
+function setRole(role){
+  CURRENT_ROLE=role;
+  localStorage.setItem(CG_ROLE,role);
+  const gate=document.getElementById('_rolegate');if(gate)gate.remove();
+  updateRolePill();
+  reinjectAllCards();
+  applyAllEdits();
+  refreshBadges();
+  wToast(role==='owner'?'Owner mode — you can edit any test case field':'Reviewer mode — expand any card to comment');
+}
+
+function updateRolePill(){
+  let pill=document.getElementById('_rolepill');
+  if(!pill){
+    pill=document.createElement('div');
+    pill.id='_rolepill';
+    pill.style.cssText='display:flex;align-items:center;gap:6px;padding:3px 10px;border-radius:100px;font-size:11px;font-weight:600;cursor:pointer;border:1px solid;transition:all .15s';
+    pill.title='Click to switch role';
+    pill.onclick=()=>showRoleGate();
+    const topbar=document.querySelector('.topbar');
+    if(topbar){
+      const searchWrap=topbar.querySelector('.search-wrap');
+      if(searchWrap)topbar.insertBefore(pill,searchWrap);
+      else topbar.appendChild(pill);
+    }
+  }
+  if(CURRENT_ROLE==='owner'){
+    pill.style.background='#0a1228';pill.style.color='#60a5fa';pill.style.borderColor='#1e3a5f';
+    pill.innerHTML='✏️ Owner &nbsp;<span style="font-size:9px;opacity:.6">switch</span>';
+  } else {
+    pill.style.background='#052e16';pill.style.color='#4ade80';pill.style.borderColor='#14532d';
+    pill.innerHTML='💬 Reviewer &nbsp;<span style="font-size:9px;opacity:.6">switch</span>';
+  }
+}
+
+// ── COMMENT DRAWER ────────────────────────────────────────────
+function openDrawer(tcId,tcTitle){
+  const old=document.getElementById('_drawer');if(old)old.remove();
+  const all=ldJ(CG_COMMENTS);
+  const cmts=all[tcId]||[];
+
+  const d=document.createElement('div');
+  d.id='_drawer';
+  d.style.cssText='position:fixed;top:0;right:0;width:390px;height:100vh;background:#fff;border-left:1px solid #e1e1e1;z-index:7000;display:flex;flex-direction:column;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;box-shadow:-4px 0 24px rgba(0,0,0,.14)';
+
+  const rows=cmts.map((c,i)=>`
+    <div style="padding:12px 14px;border-bottom:1px solid #f5f5f5;${c.resolved?'opacity:.5':''}">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:5px">
+        <div style="width:26px;height:26px;border-radius:50%;background:${avc(c.author)};color:#fff;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;flex-shrink:0">${avi(c.author)}</div>
+        <div style="flex:1"><div style="font-size:12px;font-weight:600;color:#222">${esc(c.author)}</div><div style="font-size:10px;color:#aaa">${c.time}</div></div>
+        ${c.resolved
+          ? '<span style="font-size:9px;padding:1px 7px;border-radius:3px;background:#EDFAF5;color:#12805C;font-weight:700">Resolved</span>'
+          : `<button onclick="resolveCmt('${tcId}',${i})" style="font-size:10px;color:#6e6e6e;background:#fff;border:1px solid #e1e1e1;border-radius:4px;padding:2px 8px;cursor:pointer;font-family:inherit">Resolve</button>`}
+      </div>
+      <div style="font-size:13px;color:#464646;line-height:1.55;white-space:pre-wrap">${esc(c.text)}</div>
+      ${(c.replies||[]).map(r=>`
+        <div style="margin-top:6px;padding:6px 9px;background:#fafafa;border-left:2px solid #e1e1e1;border-radius:0 4px 4px 0">
+          <div style="display:flex;align-items:center;gap:6px;margin-bottom:2px">
+            <div style="width:16px;height:16px;border-radius:50%;background:${avc(r.author)};color:#fff;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700">${avi(r.author)}</div>
+            <span style="font-size:11px;font-weight:600;color:#222">${esc(r.author)}</span>
+            <span style="font-size:10px;color:#aaa">${r.time}</span>
+          </div>
+          <div style="font-size:12px;color:#464646;white-space:pre-wrap">${esc(r.text)}</div>
         </div>`).join('')}
-      ${!c.resolved ? `
-        <div style="margin-top:7px">
-          <div style="display:flex;gap:6px;margin-bottom:5px">
-            <input id="reply-name-${i}" placeholder="Your name" style="flex:1;border:1px solid #e1e1e1;border-radius:4px;padding:4px 8px;font-size:11px;outline:none">
-            <input id="reply-text-${i}" placeholder="Reply…" style="flex:2;border:1px solid #e1e1e1;border-radius:4px;padding:4px 8px;font-size:11px;outline:none">
-            <button onclick="submitReply('${tcId}',${i})" style="padding:4px 9px;background:#0265DC;color:#fff;border:none;border-radius:4px;font-size:11px;cursor:pointer">↩</button>
-          </div>
-        </div>` : ''}
+      ${!c.resolved?`
+        <div style="margin-top:7px;display:flex;gap:5px">
+          <input id="rn-${i}" placeholder="Your name" style="width:90px;border:1px solid #e1e1e1;border-radius:4px;padding:4px 7px;font-size:11px;outline:none;font-family:inherit">
+          <input id="rt-${i}" placeholder="Reply…" style="flex:1;border:1px solid #e1e1e1;border-radius:4px;padding:4px 7px;font-size:11px;outline:none;font-family:inherit">
+          <button onclick="postReply('${tcId}',${i})" style="padding:4px 10px;background:#0265DC;color:#fff;border:none;border-radius:4px;font-size:11px;cursor:pointer">↩</button>
+        </div>`:''}
     </div>`).join('');
 
-  drawer.innerHTML = `
-    <div style="background:#1a1a1a;padding:12px 16px;display:flex;align-items:center;gap:10px;flex-shrink:0">
+  d.innerHTML=`
+    <div style="background:#1a1a1a;padding:12px 16px;display:flex;align-items:flex-start;gap:10px;flex-shrink:0">
       <div style="flex:1">
-        <div style="font-size:11px;color:#999;margin-bottom:2px">Comments</div>
-        <div style="font-size:12px;font-weight:600;color:#fff;line-height:1.3">${escH(tcId)} — ${escH(tcTitle.slice(0,50))}${tcTitle.length>50?'…':''}</div>
+        <div style="font-size:10px;color:#888;margin-bottom:2px">Comments · ${esc(tcId)}</div>
+        <div style="font-size:12px;font-weight:600;color:#fff;line-height:1.35">${esc(tcTitle.slice(0,70))}${tcTitle.length>70?'…':''}</div>
       </div>
-      <button onclick="document.getElementById('comment-drawer').remove()" style="background:#333;border:none;color:#fff;width:28px;height:28px;border-radius:6px;cursor:pointer;font-size:16px;line-height:1">×</button>
+      <button onclick="document.getElementById('_drawer').remove()" style="background:#333;border:none;color:#fff;width:28px;height:28px;border-radius:6px;cursor:pointer;font-size:18px;flex-shrink:0">×</button>
     </div>
     <div style="flex:1;overflow-y:auto">
-      ${comments.length === 0 ? '<div style="padding:24px 16px;text-align:center;color:#b3b3b3;font-size:13px">No comments yet. Be the first to comment.</div>' : cmtHtml}
+      ${cmts.length===0?'<div style="padding:28px 16px;text-align:center;color:#b3b3b3;font-size:13px">No comments yet — add one below.</div>':rows}
     </div>
     <div style="border-top:1px solid #e1e1e1;padding:12px 14px;background:#fafafa;flex-shrink:0">
-      <div style="font-size:11px;font-weight:600;color:#464646;margin-bottom:8px">Add a comment</div>
-      <input id="new-cmt-name" placeholder="Your name" style="width:100%;border:1px solid #e1e1e1;border-radius:5px;padding:6px 9px;font-size:12px;margin-bottom:6px;outline:none;font-family:inherit">
-      <textarea id="new-cmt-text" placeholder="Write a comment or flag an issue…" rows="3" style="width:100%;border:1px solid #e1e1e1;border-radius:5px;padding:6px 9px;font-size:12px;resize:none;outline:none;font-family:inherit;line-height:1.5"></textarea>
-      <button onclick="submitComment('${tcId}')" style="margin-top:6px;width:100%;padding:8px;background:#0265DC;color:#fff;border:none;border-radius:5px;font-size:12px;font-weight:600;cursor:pointer">Post comment</button>
+      <div style="font-size:11px;font-weight:600;color:#464646;margin-bottom:7px">Add a comment</div>
+      <input id="_cn" placeholder="Your name" style="width:100%;border:1px solid #e1e1e1;border-radius:5px;padding:7px 10px;font-size:12px;margin-bottom:6px;outline:none;font-family:inherit">
+      <textarea id="_ct" placeholder="Write a comment or flag an issue…" rows="3" style="width:100%;border:1px solid #e1e1e1;border-radius:5px;padding:7px 10px;font-size:12px;resize:none;outline:none;font-family:inherit;line-height:1.5"></textarea>
+      <button onclick="postComment('${tcId}')" style="margin-top:7px;width:100%;padding:8px;background:#10B981;color:#fff;border:none;border-radius:5px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit">Post comment</button>
     </div>`;
-
-  document.body.appendChild(drawer);
+  document.body.appendChild(d);
 }
 
-function escH(s) {
-  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+function postComment(tcId){
+  const name=(document.getElementById('_cn').value||'').trim();
+  const text=(document.getElementById('_ct').value||'').trim();
+  if(!name){document.getElementById('_cn').style.borderColor='#D7373F';document.getElementById('_cn').focus();return;}
+  if(!text){document.getElementById('_ct').style.borderColor='#D7373F';document.getElementById('_ct').focus();return;}
+  const all=ldJ(CG_COMMENTS);
+  if(!all[tcId])all[tcId]=[];
+  all[tcId].push({author:name,text,time:ts(),resolved:false,replies:[]});
+  svJ(CG_COMMENTS,all);
+  refreshBadges();
+  const card=document.querySelector(`[data-tcid="${tcId}"]`);
+  const titleEl=card?card.querySelector('.tc-title'):null;
+  openDrawer(tcId,titleEl?titleEl.textContent.trim():tcId);
+  wToast('Comment posted on '+tcId);
 }
 
-function submitComment(tcId) {
-  const name = (document.getElementById('new-cmt-name').value || '').trim();
-  const text = (document.getElementById('new-cmt-text').value || '').trim();
-  if (!name) { document.getElementById('new-cmt-name').focus(); document.getElementById('new-cmt-name').style.borderColor='#D7373F'; return; }
-  if (!text) { document.getElementById('new-cmt-text').focus(); document.getElementById('new-cmt-text').style.borderColor='#D7373F'; return; }
-  const all = loadComments();
-  if (!all[tcId]) all[tcId] = [];
-  all[tcId].push({ author: name, text, time: new Date().toLocaleString(), resolved: false, replies: [] });
-  saveComments(all);
-  updateCommentBadges();
-  const card = document.querySelector(`[data-tcid="${tcId}"]`);
-  if (card) {
-    const titleEl = card.querySelector('.tc-title');
-    openCommentDrawer(tcId, titleEl ? titleEl.textContent : tcId);
-  }
-  showWikiToast('Comment posted on ' + tcId);
+function postReply(tcId,idx){
+  const name=(document.getElementById('rn-'+idx).value||'').trim();
+  const text=(document.getElementById('rt-'+idx).value||'').trim();
+  if(!name||!text)return;
+  const all=ldJ(CG_COMMENTS);
+  if(!all[tcId]||!all[tcId][idx])return;
+  if(!all[tcId][idx].replies)all[tcId][idx].replies=[];
+  all[tcId][idx].replies.push({author:name,text,time:ts()});
+  svJ(CG_COMMENTS,all);
+  refreshBadges();
+  const card=document.querySelector(`[data-tcid="${tcId}"]`);
+  const titleEl=card?card.querySelector('.tc-title'):null;
+  openDrawer(tcId,titleEl?titleEl.textContent.trim():tcId);
+  wToast('Reply posted');
 }
 
-function submitReply(tcId, idx) {
-  const name = (document.getElementById('reply-name-' + idx).value || '').trim();
-  const text = (document.getElementById('reply-text-' + idx).value || '').trim();
-  if (!name || !text) return;
-  const all = loadComments();
-  if (!all[tcId] || !all[tcId][idx]) return;
-  if (!all[tcId][idx].replies) all[tcId][idx].replies = [];
-  all[tcId][idx].replies.push({ author: name, text, time: new Date().toLocaleString() });
-  saveComments(all);
-  updateCommentBadges();
-  const card = document.querySelector(`[data-tcid="${tcId}"]`);
-  if (card) {
-    const titleEl = card.querySelector('.tc-title');
-    openCommentDrawer(tcId, titleEl ? titleEl.textContent : tcId);
-  }
-  showWikiToast('Reply posted');
+function resolveCmt(tcId,idx){
+  const all=ldJ(CG_COMMENTS);
+  if(all[tcId]&&all[tcId][idx])all[tcId][idx].resolved=true;
+  svJ(CG_COMMENTS,all);
+  refreshBadges();
+  const card=document.querySelector(`[data-tcid="${tcId}"]`);
+  const titleEl=card?card.querySelector('.tc-title'):null;
+  openDrawer(tcId,titleEl?titleEl.textContent.trim():tcId);
+  wToast('Comment resolved');
 }
 
-function resolveComment(tcId, idx) {
-  const all = loadComments();
-  if (all[tcId] && all[tcId][idx]) all[tcId][idx].resolved = true;
-  saveComments(all);
-  updateCommentBadges();
-  const card = document.querySelector(`[data-tcid="${tcId}"]`);
-  if (card) {
-    const titleEl = card.querySelector('.tc-title');
-    openCommentDrawer(tcId, titleEl ? titleEl.textContent : tcId);
-  }
-  showWikiToast('Comment resolved');
-}
+function openCount(tcId){return(ldJ(CG_COMMENTS)[tcId]||[]).filter(c=>!c.resolved).length;}
 
-function updateCommentBadges() {
-  document.querySelectorAll('.tc-card').forEach(card => {
-    const tcId = card.dataset.tcid;
-    if (!tcId) return;
-    const badgeEl = card.querySelector('.cmt-badge');
-    const n = getCommentCount(tcId);
-    if (badgeEl) {
-      badgeEl.innerHTML = n ? `💬 ${n}` : '';
-      badgeEl.style.display = n ? 'inline-flex' : 'none';
-    }
-    // amber left border if has open comments
-    card.style.borderLeft = n ? '3px solid #F59E0B' : '';
+function refreshBadges(){
+  document.querySelectorAll('.tc-card[data-tcid]').forEach(card=>{
+    const id=card.dataset.tcid;
+    const n=openCount(id);
+    const b=card.querySelector('._cmtbadge');
+    if(b){b.textContent=n?'💬 '+n:'';b.style.display=n?'inline-flex':'none';}
+    card.style.borderLeft=n?'3px solid #F59E0B':'';
   });
 }
 
-// ── INLINE EDIT (owner mode) ─────────────────────────────────
-function openEditModal(tcId, field, currentVal) {
-  const existing = document.getElementById('edit-modal');
-  if (existing) existing.remove();
-
-  const overlay = document.createElement('div');
-  overlay.id = 'edit-modal';
-  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:1100;display:flex;align-items:center;justify-content:center';
-
-  const fieldLabel = { ti: 'Title', ex: 'Expected Result', steps: 'Steps (one per line)' }[field] || field;
-  const isTextarea = field !== 'ti';
-
-  overlay.innerHTML = `
-    <div style="background:#fff;border-radius:10px;width:560px;max-width:95vw;box-shadow:0 8px 40px rgba(0,0,0,.2);overflow:hidden;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif">
+// ── EDIT MODAL ────────────────────────────────────────────────
+function openEdit(tcId,field,val){
+  const old=document.getElementById('_editmodal');if(old)old.remove();
+  const labels={ti:'Title',ex:'Expected Result',steps:'Steps (one per line)'};
+  const isArea=field!=='ti';
+  const ov=document.createElement('div');
+  ov.id='_editmodal';
+  ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:7500;display:flex;align-items:center;justify-content:center;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif';
+  ov.innerHTML=`
+    <div style="background:#fff;border-radius:10px;width:580px;max-width:96vw;box-shadow:0 8px 48px rgba(0,0,0,.22);overflow:hidden">
       <div style="background:#1a1a1a;padding:13px 16px;display:flex;align-items:center;justify-content:space-between">
         <div>
-          <div style="font-size:10px;color:#999;margin-bottom:2px">Editing: ${escH(tcId)}</div>
-          <div style="font-size:13px;font-weight:600;color:#fff">${fieldLabel}</div>
+          <div style="font-size:10px;color:#888;margin-bottom:1px">Editing · ${esc(tcId)}</div>
+          <div style="font-size:13px;font-weight:600;color:#fff">${labels[field]||field}</div>
         </div>
-        <button onclick="document.getElementById('edit-modal').remove()" style="background:#333;border:none;color:#fff;width:28px;height:28px;border-radius:6px;cursor:pointer;font-size:16px">×</button>
+        <button onclick="document.getElementById('_editmodal').remove()" style="background:#333;border:none;color:#fff;width:28px;height:28px;border-radius:6px;cursor:pointer;font-size:18px">×</button>
       </div>
       <div style="padding:16px">
-        ${isTextarea
-          ? `<textarea id="edit-input" rows="7" style="width:100%;border:1px solid #e1e1e1;border-radius:5px;padding:9px 11px;font-size:13px;line-height:1.6;resize:vertical;outline:none;font-family:inherit">${escH(currentVal)}</textarea>`
-          : `<input id="edit-input" value="${escH(currentVal)}" style="width:100%;border:1px solid #e1e1e1;border-radius:5px;padding:9px 11px;font-size:13px;outline:none;font-family:inherit">`}
+        ${isArea
+          ? `<textarea id="_ei" rows="8" style="width:100%;border:1px solid #e1e1e1;border-radius:5px;padding:9px 11px;font-size:13px;line-height:1.6;resize:vertical;outline:none;font-family:inherit">${esc(val)}</textarea>`
+          : `<input id="_ei" value="${esc(val)}" style="width:100%;border:1px solid #e1e1e1;border-radius:5px;padding:9px 11px;font-size:13px;outline:none;font-family:inherit">`}
         <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:12px">
-          <button onclick="document.getElementById('edit-modal').remove()" style="padding:7px 14px;border:1px solid #e1e1e1;border-radius:5px;background:#fff;font-size:12px;cursor:pointer;color:#6e6e6e">Cancel</button>
-          <button onclick="saveEdit('${tcId}','${field}')" style="padding:7px 16px;border:none;border-radius:5px;background:#0265DC;color:#fff;font-size:12px;font-weight:600;cursor:pointer">Save changes</button>
+          <button onclick="document.getElementById('_editmodal').remove()" style="padding:7px 16px;border:1px solid #e1e1e1;border-radius:5px;background:#fff;font-size:12px;cursor:pointer;color:#6e6e6e;font-family:inherit">Cancel</button>
+          <button onclick="saveEdit('${tcId}','${field}')" style="padding:7px 18px;border:none;border-radius:5px;background:#0265DC;color:#fff;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit">Save changes</button>
         </div>
       </div>
     </div>`;
-
-  document.body.appendChild(overlay);
-  const inp = document.getElementById('edit-input');
-  if (inp) { inp.focus(); if (inp.setSelectionRange) inp.setSelectionRange(inp.value.length, inp.value.length); }
-  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+  ov.addEventListener('click',e=>{if(e.target===ov)ov.remove();});
+  document.body.appendChild(ov);
+  const inp=document.getElementById('_ei');
+  if(inp){inp.focus();try{inp.setSelectionRange(inp.value.length,inp.value.length);}catch(e){}}
 }
 
-function saveEdit(tcId, field) {
-  const inp = document.getElementById('edit-input');
-  if (!inp) return;
-  const val = inp.value.trim();
-  const all = loadEdits();
-  if (!all[tcId]) all[tcId] = {};
-  all[tcId][field] = val;
-  saveEdits(all);
+function saveEdit(tcId,field){
+  const inp=document.getElementById('_ei');if(!inp)return;
+  const val=inp.value;
+  const all=ldJ(CG_EDITS);
+  if(!all[tcId])all[tcId]={};
+  all[tcId][field]=val;
+  svJ(CG_EDITS,all);
+  applyEdit(tcId,field,val);
+  document.getElementById('_editmodal').remove();
+  wToast('Saved — '+tcId);
+}
 
-  // Update DOM live
-  const card = document.querySelector(`[data-tcid="${tcId}"]`);
-  if (card) {
-    if (field === 'ti') {
-      const titleEl = card.querySelector('.tc-title');
-      if (titleEl) titleEl.firstChild.textContent = val;
-    }
-    if (field === 'ex') {
-      const expEl = card.querySelector('.tc-exp');
-      if (expEl) expEl.textContent = val;
-    }
-    if (field === 'steps') {
-      const stepsEl = card.querySelector('.tc-steps ol');
-      if (stepsEl) {
-        stepsEl.innerHTML = val.split('\n').filter(s=>s.trim()).map(s=>`<li>${escH(s.trim())}</li>`).join('');
-      }
-    }
+function applyEdit(tcId,field,val){
+  const card=document.querySelector(`[data-tcid="${tcId}"]`);if(!card)return;
+  if(field==='ti'){const el=card.querySelector('.tc-title');if(el&&el.childNodes[0])el.childNodes[0].textContent=val;}
+  if(field==='ex'){const el=card.querySelector('.tc-exp');if(el)el.textContent=val;}
+  if(field==='steps'){
+    const el=card.querySelector('.tc-steps ol');
+    if(el)el.innerHTML=val.split('\n').filter(s=>s.trim()).map(s=>`<li>${esc(s.trim())}</li>`).join('');
   }
-
-  document.getElementById('edit-modal').remove();
-  showWikiToast('Saved: ' + tcId + ' — ' + field);
 }
 
-function applyStoredEdits() {
-  const all = loadEdits();
-  Object.entries(all).forEach(([tcId, fields]) => {
-    const card = document.querySelector(`[data-tcid="${tcId}"]`);
-    if (!card) return;
-    if (fields.ti) {
-      const titleEl = card.querySelector('.tc-title');
-      if (titleEl) titleEl.firstChild.textContent = fields.ti;
+function applyAllEdits(){
+  const all=ldJ(CG_EDITS);
+  Object.entries(all).forEach(([id,fields])=>Object.entries(fields).forEach(([f,v])=>applyEdit(id,f,v)));
+}
+
+function exportData(){
+  const data=JSON.stringify({edits:ldJ(CG_EDITS),comments:ldJ(CG_COMMENTS)},null,2);
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([data],{type:'application/json'}));
+  a.download='qa_wiki_data.json';a.click();
+  wToast('Exported all edits and comments');
+}
+
+// ── INJECT ACTION BAR INTO EACH CARD ─────────────────────────
+function tagCards(){
+  document.querySelectorAll('.tc-card').forEach(card=>{
+    if(!card.dataset.tcid){
+      const idEl=card.querySelector('.tc-id');
+      if(idEl)card.dataset.tcid=idEl.textContent.trim().split('\n')[0].trim();
     }
-    if (fields.ex) {
-      const expEl = card.querySelector('.tc-exp');
-      if (expEl) expEl.textContent = fields.ex;
-    }
-    if (fields.steps) {
-      const stepsEl = card.querySelector('.tc-steps ol');
-      if (stepsEl) {
-        stepsEl.innerHTML = fields.steps.split('\n').filter(s=>s.trim()).map(s=>`<li>${escH(s.trim())}</li>`).join('');
+    const tcId=card.dataset.tcid;if(!tcId)return;
+
+    // Comment badge in title row
+    if(!card.querySelector('._cmtbadge')){
+      const titleEl=card.querySelector('.tc-title');
+      if(titleEl){
+        const b=document.createElement('span');
+        b.className='_cmtbadge';
+        b.style.cssText='display:none;align-items:center;gap:3px;padding:1px 7px;border-radius:4px;font-size:9px;font-weight:700;background:#FEF3C7;color:#92400E;margin-left:6px;vertical-align:middle;cursor:pointer';
+        b.onclick=e=>{e.stopPropagation();openDrawer(tcId,titleEl.textContent.trim());};
+        titleEl.appendChild(b);
       }
+    }
+
+    // Watch for card expand → inject action bar
+    if(!card.dataset.watched){
+      card.dataset.watched='1';
+      new MutationObserver(()=>{
+        const body=card.querySelector('.tc-body');
+        if(!body||!body.classList.contains('open')||body.querySelector('._actbar'))return;
+        buildActionBar(card,tcId,body);
+      }).observe(card,{attributes:true,attributeFilter:['class'],subtree:true});
     }
   });
 }
 
-function showWikiToast(msg) {
-  let t = document.getElementById('wiki-toast');
-  if (!t) {
-    t = document.createElement('div');
-    t.id = 'wiki-toast';
-    t.style.cssText = 'position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#111;color:#fff;padding:8px 18px;border-radius:100px;font-size:12px;font-family:-apple-system,sans-serif;z-index:2000;transition:opacity .3s;white-space:nowrap';
-    document.body.appendChild(t);
-  }
-  t.textContent = msg;
-  t.style.opacity = '1';
-  clearTimeout(t._to);
-  t._to = setTimeout(() => { t.style.opacity = '0'; }, 2500);
-}
+function buildActionBar(card,tcId,body){
+  // Remove stale bar if role changed
+  const old=body.querySelector('._actbar');if(old)old.remove();
 
-// ── INJECT COMMENT + EDIT BUTTONS INTO EACH CARD ────────────
-function injectCardControls() {
-  document.querySelectorAll('.tc-card').forEach(card => {
-    const tcId = card.dataset.tcid;
-    if (!tcId || card.dataset.controlled) return;
-    card.dataset.controlled = '1';
+  const bar=document.createElement('div');
+  bar.className='_actbar';
+  bar.style.cssText='display:flex;flex-wrap:wrap;gap:7px;padding:11px 14px;background:#f9f9f9;border-top:1px solid #e1e1e1;align-items:center';
 
-    // Comment badge in header
-    const titleEl = card.querySelector('.tc-title');
-    if (titleEl) {
-      const badge = document.createElement('span');
-      badge.className = 'cmt-badge';
-      badge.style.cssText = 'display:none;align-items:center;gap:3px;padding:1px 6px;border-radius:4px;font-size:9px;font-weight:700;background:#FEF3C7;color:#92400E;margin-left:6px;vertical-align:middle;cursor:pointer';
-      badge.addEventListener('click', e => {
-        e.stopPropagation();
-        openCommentDrawer(tcId, titleEl.textContent.trim());
-      });
-      titleEl.appendChild(badge);
-    }
+  const mkBtn=(label,bg,color,border,fn)=>{
+    const b=document.createElement('button');
+    b.innerHTML=label;
+    b.style.cssText=`padding:5px 13px;background:${bg};color:${color};border:1px solid ${border};border-radius:5px;font-size:11px;cursor:pointer;font-family:inherit;font-weight:500;transition:opacity .1s`;
+    b.onmouseover=()=>b.style.opacity='.8';
+    b.onmouseout=()=>b.style.opacity='1';
+    b.onclick=fn;
+    bar.appendChild(b);
+  };
 
-    // Action buttons bar — injected into tc-body after it exists
-    const observer = new MutationObserver(() => {
-      const body = card.querySelector('.tc-body.open');
-      if (!body || body.querySelector('.card-actions')) return;
-
-      const actions = document.createElement('div');
-      actions.className = 'card-actions';
-      actions.style.cssText = 'display:flex;gap:8px;padding:10px 14px;background:#fafafa;border-top:1px solid #e1e1e1;flex-wrap:wrap;align-items:center';
-
-      // Comment button
-      const cmtBtn = document.createElement('button');
-      cmtBtn.innerHTML = '💬 Comment';
-      cmtBtn.style.cssText = 'padding:5px 12px;border:1px solid #e1e1e1;border-radius:5px;background:#fff;font-size:11px;cursor:pointer;color:#464646;font-family:inherit';
-      cmtBtn.onclick = () => openCommentDrawer(tcId, titleEl ? titleEl.textContent.trim() : tcId);
-      actions.appendChild(cmtBtn);
-
-      // Edit buttons
-      const editFields = [
-        { f:'ti',    label:'✏ Edit title' },
-        { f:'steps', label:'✏ Edit steps' },
-        { f:'ex',    label:'✏ Edit expected result' },
-      ];
-      editFields.forEach(({ f, label }) => {
-        const btn = document.createElement('button');
-        btn.innerHTML = label;
-        btn.style.cssText = 'padding:5px 12px;border:1px solid #dbeafe;border-radius:5px;background:#EFF6FF;font-size:11px;cursor:pointer;color:#1e40af;font-family:inherit';
-        btn.onclick = () => {
-          let currentVal = '';
-          if (f === 'ti') currentVal = titleEl ? titleEl.textContent.trim() : '';
-          if (f === 'ex') {
-            const expEl = card.querySelector('.tc-exp');
-            currentVal = expEl ? expEl.textContent.trim() : '';
-          }
-          if (f === 'steps') {
-            const items = card.querySelectorAll('.tc-steps ol li');
-            currentVal = Array.from(items).map(li => li.textContent.trim()).join('\n');
-          }
-          openEditModal(tcId, f, currentVal);
-        };
-        actions.appendChild(btn);
-      });
-
-      // Export edits button
-      const exportBtn = document.createElement('button');
-      exportBtn.innerHTML = '⬇ Export edits';
-      exportBtn.style.cssText = 'padding:5px 12px;border:1px solid #d1fae5;border-radius:5px;background:#ECFDF5;font-size:11px;cursor:pointer;color:#065f46;font-family:inherit;margin-left:auto';
-      exportBtn.onclick = () => exportAllEdits();
-      actions.appendChild(exportBtn);
-
-      body.appendChild(actions);
-      observer.disconnect();
+  if(CURRENT_ROLE==='owner'){
+    // Edit buttons for owner
+    mkBtn('✏ Edit title','#EFF6FF','#1e40af','#BFDBFE',()=>{
+      const el=card.querySelector('.tc-title');
+      openEdit(tcId,'ti',el?Array.from(el.childNodes).filter(n=>n.nodeType===3).map(n=>n.textContent).join('').trim():'');
     });
-    observer.observe(card, { attributes: true, attributeFilter: ['class'], subtree: false });
-  });
-}
+    mkBtn('✏ Edit steps','#EFF6FF','#1e40af','#BFDBFE',()=>{
+      const items=card.querySelectorAll('.tc-steps ol li');
+      openEdit(tcId,'steps',Array.from(items).map(li=>li.textContent.trim()).join('\n'));
+    });
+    mkBtn('✏ Edit expected','#EFF6FF','#1e40af','#BFDBFE',()=>{
+      const el=card.querySelector('.tc-exp');
+      openEdit(tcId,'ex',el?el.textContent.trim():'');
+    });
+    // Divider
+    const div=document.createElement('div');
+    div.style.cssText='width:1px;height:18px;background:#e1e1e1;margin:0 2px';
+    bar.appendChild(div);
+    // Owner can also see comments (read-only view)
+    mkBtn('💬 View comments','#fff','#464646','#e1e1e1',()=>{
+      const titleEl=card.querySelector('.tc-title');
+      openDrawer(tcId,titleEl?titleEl.textContent.trim():tcId);
+    });
+    // Export
+    const exp=document.createElement('button');
+    exp.innerHTML='⬇ Export';exp.title='Download all edits and comments as JSON';
+    exp.style.cssText='margin-left:auto;padding:5px 12px;background:#ECFDF5;color:#065f46;border:1px solid #A7F3D0;border-radius:5px;font-size:11px;cursor:pointer;font-family:inherit';
+    exp.onclick=exportData;
+    bar.appendChild(exp);
 
-function exportAllEdits() {
-  const edits = loadEdits();
-  const comments = loadComments();
-  const data = JSON.stringify({ edits, comments }, null, 2);
-  const blob = new Blob([data], { type: 'application/json' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url; a.download = 'qa_wiki_edits_and_comments.json';
-  a.click();
-  URL.revokeObjectURL(url);
-  showWikiToast('Exported edits and comments as JSON');
-}
-
-// ── INIT ──────────────────────────────────────────────────────
-// Wait for DOM + existing init to complete
-setTimeout(() => {
-  // tag all existing cards with their tcid
-  document.querySelectorAll('.tc-card').forEach(card => {
-    const idEl = card.querySelector('.tc-id');
-    if (idEl && !card.dataset.tcid) {
-      card.dataset.tcid = idEl.textContent.trim();
-    }
-  });
-  applyStoredEdits();
-  updateCommentBadges();
-  injectCardControls();
-
-  // Re-run on nav (pages switch)
-  const origShowPage = window.showPage;
-  if (typeof origShowPage === 'function') {
-    window.showPage = function(id) {
-      origShowPage(id);
-      setTimeout(() => {
-        document.querySelectorAll('.tc-card').forEach(card => {
-          const idEl = card.querySelector('.tc-id');
-          if (idEl && !card.dataset.tcid) card.dataset.tcid = idEl.textContent.trim();
-        });
-        applyStoredEdits();
-        updateCommentBadges();
-        injectCardControls();
-      }, 80);
-    };
+  } else if(CURRENT_ROLE==='reviewer'){
+    // Comment button for reviewer
+    mkBtn('💬 Add comment','#ECFDF5','#065f46','#A7F3D0',()=>{
+      const titleEl=card.querySelector('.tc-title');
+      openDrawer(tcId,titleEl?titleEl.textContent.trim():tcId);
+    });
+    // Read-only notice
+    const note=document.createElement('span');
+    note.style.cssText='font-size:10px;color:#aaa;margin-left:4px';
+    note.textContent='Reviewer — comment only';
+    bar.appendChild(note);
   }
-}, 200);
+
+  body.appendChild(bar);
+}
+
+function reinjectAllCards(){
+  // Remove stale action bars so they get rebuilt with new role
+  document.querySelectorAll('._actbar').forEach(b=>b.remove());
+  // Re-open any open cards to rebuild their bar
+  document.querySelectorAll('.tc-body.open').forEach(body=>{
+    const card=body.closest('.tc-card');
+    if(card&&card.dataset.tcid)buildActionBar(card,card.dataset.tcid,body);
+  });
+}
+
+// ── BOOT ──────────────────────────────────────────────────────
+function boot(){
+  tagCards();
+  applyAllEdits();
+  refreshBadges();
+}
+
+// Hook into page navigation
+const _origShow=window.showPage;
+if(typeof _origShow==='function'){
+  window.showPage=function(id){
+    _origShow(id);
+    setTimeout(boot,150);
+  };
+}
+
+// Initial boot
+setTimeout(()=>{
+  if(!CURRENT_ROLE){
+    showRoleGate();
+  } else {
+    updateRolePill();
+  }
+  boot();
+},300);
 
 </script>
 </body>
