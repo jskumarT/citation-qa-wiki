@@ -1855,14 +1855,18 @@ document.querySelectorAll('.nav-section-title').forEach(el => {
 });
 
 // ═══════════════════════════════════════════════════════════
-// ROLE SYSTEM — Owner edits anything, Reviewer comments only
+// ACCESS CONTROL
+// jskumar@adobe.com → Owner (full edit + delete)
+// Everyone else     → Reviewer (comment only)
 // ═══════════════════════════════════════════════════════════
-const CG_ROLE     = 'cg_role_v4';
+const OWNER_EMAIL = 'jskumar@adobe.com';
+const CG_USER     = 'cg_user_v4';
 const CG_COMMENTS = 'cg_comments_v4';
 const CG_EDITS    = 'cg_edits_v4';
 const CG_DELETED  = 'cg_deleted_v4';
 
-let ROLE = localStorage.getItem(CG_ROLE) || null;
+let CUR_USER  = null;   // { name, email }
+let IS_OWNER  = false;
 
 function ldJ(k){try{return JSON.parse(localStorage.getItem(k)||'{}')}catch(e){return{}}}
 function ldA(k){try{return JSON.parse(localStorage.getItem(k)||'[]')}catch(e){return[]}}
@@ -1874,189 +1878,181 @@ const AVC=['#3B82F6','#8B5CF6','#EF4444','#10B981','#F59E0B','#EC4899','#06B6D4'
 function avc(n){let h=0;for(let i=0;i<n.length;i++)h=n.charCodeAt(i)+((h<<5)-h);return AVC[Math.abs(h)%AVC.length];}
 function avi(n){return n.trim().split(/\s+/).map(w=>w[0]).join('').toUpperCase().slice(0,2)||'?';}
 
-// ── TOAST ────────────────────────────────────────────────────
+// ── TOAST ─────────────────────────────────────────────────────
 function wT(msg){
   let t=document.getElementById('_wt');
   if(!t){t=document.createElement('div');t.id='_wt';t.style.cssText='position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#111;color:#fff;padding:9px 22px;border-radius:100px;font-size:12px;font-family:-apple-system,sans-serif;z-index:9999;pointer-events:none;transition:opacity .3s;white-space:nowrap';document.body.appendChild(t);}
   t.textContent=msg;t.style.opacity='1';clearTimeout(t._t);t._t=setTimeout(()=>t.style.opacity='0',2700);
 }
 
-// ── ROLE GATE ────────────────────────────────────────────────
-function showGate(){
+// ── LOGIN GATE ────────────────────────────────────────────────
+function showLoginGate(){
   document.getElementById('_gate')?.remove();
   const g=document.createElement('div');
   g.id='_gate';
   g.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:8000;display:flex;align-items:center;justify-content:center;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif';
   g.innerHTML=`
-  <div style="background:#fff;border-radius:14px;width:500px;max-width:94vw;overflow:hidden;box-shadow:0 16px 60px rgba(0,0,0,.3)">
-    <div style="background:#1a1a1a;padding:20px 22px">
-      <div style="font-size:11px;color:#777;margin-bottom:5px">Citation Generator — QA Wiki v2</div>
-      <div style="font-size:18px;font-weight:700;color:#fff">How are you reviewing?</div>
-      <div style="font-size:12px;color:#999;margin-top:4px">Choose your role — switch any time from the top bar</div>
-    </div>
-    <div style="padding:20px;display:grid;grid-template-columns:1fr 1fr;gap:14px">
-      <div onclick="setRole('owner')" style="border:2px solid #BFDBFE;border-radius:10px;padding:20px 16px;cursor:pointer;background:#F8FBFF;transition:all .15s" onmouseover="this.style.borderColor='#3B82F6';this.style.background='#EFF6FF'" onmouseout="this.style.borderColor='#BFDBFE';this.style.background='#F8FBFF'">
-        <div style="font-size:26px;margin-bottom:10px">✏️</div>
-        <div style="font-size:15px;font-weight:700;color:#1e40af;margin-bottom:6px">Owner</div>
-        <div style="font-size:11px;color:#555;line-height:1.7">Full edit access to the entire document — any text, any section, any test case. Can also delete test cases.</div>
-        <div style="margin-top:12px;display:flex;flex-direction:column;gap:4px">
-          <div style="font-size:11px;color:#12805C">✓ Inline-edit any text on the page</div>
-          <div style="font-size:11px;color:#12805C">✓ Edit / delete any test case</div>
-          <div style="font-size:11px;color:#12805C">✓ See and resolve all comments</div>
-          <div style="font-size:11px;color:#12805C">✓ Export all edits and comments</div>
+    <div style="background:#fff;border-radius:14px;width:420px;max-width:94vw;overflow:hidden;box-shadow:0 16px 60px rgba(0,0,0,.3)">
+      <div style="background:#1a1a1a;padding:22px 24px">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+          <div style="width:36px;height:36px;background:#E23;border-radius:8px;display:flex;align-items:center;justify-content:center">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><rect width="24" height="24" rx="4" fill="#E23"/><path d="M6 7h12M6 12h8M6 17h10" stroke="#fff" stroke-width="2" stroke-linecap="round"/></svg>
+          </div>
+          <div>
+            <div style="font-size:13px;font-weight:700;color:#fff">QA Wiki</div>
+            <div style="font-size:10px;color:#888">Citation Generator · Student Spaces · v2</div>
+          </div>
         </div>
+        <div style="font-size:16px;font-weight:700;color:#fff;margin-bottom:4px">Sign in to continue</div>
+        <div style="font-size:12px;color:#999">Use your Adobe email address</div>
       </div>
-      <div onclick="setRole('reviewer')" style="border:2px solid #A7F3D0;border-radius:10px;padding:20px 16px;cursor:pointer;background:#F8FFFC;transition:all .15s" onmouseover="this.style.borderColor='#10B981';this.style.background='#ECFDF5'" onmouseout="this.style.borderColor='#A7F3D0';this.style.background='#F8FFFC'">
-        <div style="font-size:26px;margin-bottom:10px">💬</div>
-        <div style="font-size:15px;font-weight:700;color:#065f46;margin-bottom:6px">Reviewer</div>
-        <div style="font-size:11px;color:#555;line-height:1.7">Comment, flag issues, reply to threads, and mark resolved. All test case fields are read-only.</div>
-        <div style="margin-top:12px;display:flex;flex-direction:column;gap:4px">
-          <div style="font-size:11px;color:#12805C">✓ Post comments on any test case</div>
-          <div style="font-size:11px;color:#12805C">✓ Reply to threads</div>
-          <div style="font-size:11px;color:#12805C">✓ Mark comments resolved</div>
-          <div style="font-size:11px;color:#aaa">– Read-only for all document text</div>
+      <div style="padding:22px 24px">
+        <div style="margin-bottom:14px">
+          <label style="font-size:11px;font-weight:700;color:#464646;text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:5px">Your name</label>
+          <input id="_gname" placeholder="e.g. Jayasheela Kumar" style="width:100%;border:1px solid #e1e1e1;border-radius:7px;padding:10px 12px;font-size:13px;outline:none;font-family:inherit" onkeydown="if(event.key==='Enter')document.getElementById('_gemail').focus()">
         </div>
+        <div style="margin-bottom:18px">
+          <label style="font-size:11px;font-weight:700;color:#464646;text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:5px">Adobe email</label>
+          <input id="_gemail" type="email" placeholder="you@adobe.com" style="width:100%;border:1px solid #e1e1e1;border-radius:7px;padding:10px 12px;font-size:13px;outline:none;font-family:inherit" onkeydown="if(event.key==='Enter')doLogin()">
+        </div>
+        <button onclick="doLogin()" style="width:100%;padding:11px;background:#0265DC;color:#fff;border:none;border-radius:7px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">Continue</button>
+        <div id="_gerr" style="display:none;margin-top:10px;font-size:12px;color:#D7373F;text-align:center"></div>
+
       </div>
-    </div>
-  </div>`;
+    </div>`;
   document.body.appendChild(g);
+  setTimeout(()=>document.getElementById('_gname')?.focus(),100);
 }
 
-function setRole(r){
-  ROLE=r;svJ(CG_ROLE,r);
-  document.getElementById('_gate')?.remove();
-  updatePill();
-  applyOwnerMode();
-  applyAllEdits();
-  applyDeleted();
-  refreshBadges();
-  wT(r==='owner'?'Owner mode — click any text to edit it':'Reviewer mode — expand cards to comment');
-}
+function doLogin(){
+  const name=(document.getElementById('_gname').value||'').trim();
+  const email=(document.getElementById('_gemail').value||'').trim().toLowerCase();
+  const err=document.getElementById('_gerr');
 
-// ── ROLE PILL ────────────────────────────────────────────────
-function updatePill(){
-  let p=document.getElementById('_pill');
-  if(!p){
-    p=document.createElement('button');p.id='_pill';
-    p.style.cssText='padding:4px 12px;border-radius:100px;font-size:11px;font-weight:700;cursor:pointer;border:1px solid;font-family:inherit;display:flex;align-items:center;gap:6px';
-    p.onclick=showGate;
-    document.querySelector('.search-wrap')?.before(p);
+  if(!name){
+    err.textContent='Please enter your name.';err.style.display='block';
+    document.getElementById('_gname').style.borderColor='#D7373F';
+    document.getElementById('_gname').focus();return;
   }
-  if(ROLE==='owner'){p.style.background='#0a1228';p.style.color='#60a5fa';p.style.borderColor='#1e3a5f';p.textContent='✏️ Owner — click to switch';}
-  else{p.style.background='#052e16';p.style.color='#4ade80';p.style.borderColor='#14532d';p.textContent='💬 Reviewer — click to switch';}
-}
-
-// ── OWNER MODE: make editable elements clickable ──────────────
-function applyOwnerMode(){
-  if(ROLE!=='owner'){
-    // remove all edit overlays if switching to reviewer
-    document.querySelectorAll('._eo').forEach(e=>e.remove());
-    document.querySelectorAll('[data-editable]').forEach(el=>{
-      el.style.cursor='';el.style.outline='';el.onclick=null;
-    });
-    // rebuild card bars for reviewer
-    document.querySelectorAll('._actbar').forEach(b=>b.remove());
-    document.querySelectorAll('.tc-body.open').forEach(body=>{
-      const card=body.closest('.tc-card');
-      if(card?.dataset.tcid)buildBar(card,card.dataset.tcid,body);
-    });
-    return;
+  if(!email||!email.includes('@')){
+    err.textContent='Please enter a valid email address.';err.style.display='block';
+    document.getElementById('_gemail').style.borderColor='#D7373F';
+    document.getElementById('_gemail').focus();return;
+  }
+  if(!email.endsWith('@adobe.com')){
+    err.textContent='Please use your Adobe email address (@adobe.com).';err.style.display='block';
+    document.getElementById('_gemail').style.borderColor='#D7373F';
+    document.getElementById('_gemail').focus();return;
   }
 
-  // Mark editable elements
-  const editTargets=[
-    // Page headings
-    {sel:'.page-h1',          field:'page-h1',      type:'input'},
-    {sel:'.sec-h2',           field:'sec-h2',        type:'input'},
-    // Stat numbers
-    {sel:'.snum',             field:'snum',           type:'input'},
-    // Callout content
-    {sel:'.callout-body p',   field:'callout-p',     type:'textarea'},
-    {sel:'.callout-body li',  field:'callout-li',    type:'input'},
-    // Source status descriptions
-    {sel:'.ssb-desc',         field:'ssb-desc',      type:'textarea'},
-    // Corrections table cells
-    {sel:'.wiki-table td',    field:'td',            type:'input'},
-    // Overview card descriptions
-    {sel:'.ov-desc',          field:'ov-desc',       type:'textarea'},
-    // TC fields (title, steps, expected) handled separately via card bar
-  ];
+  CUR_USER={name,email};
+  IS_OWNER=(email===OWNER_EMAIL);
+  svJ(CG_USER,CUR_USER);
 
-  editTargets.forEach(({sel,field,type})=>{
-    document.querySelectorAll(sel).forEach((el,i)=>{
-      if(el.dataset.editable)return; // already tagged
-      el.dataset.editable='1';
-      el.dataset.editField=field+'-'+i;
-      el.style.cursor='pointer';
-      el.style.transition='outline .1s';
-      el.onmouseenter=()=>{ if(ROLE==='owner') el.style.outline='2px dashed #3B82F6'; };
-      el.onmouseleave=()=>el.style.outline='';
-      el.onclick=(e)=>{ if(ROLE==='owner'){e.stopPropagation();openInlineEdit(el,type);} };
-    });
-  });
+  document.getElementById('_gate').remove();
+  updateUserPill();
+  boot();
+  wT(IS_OWNER
+    ? 'Welcome, '+name+' — Owner access granted ✏'
+    : 'Welcome, '+name+' — Reviewer access 💬');
+}
 
-  // Rebuild card bars for owner
+function signOut(){
+  localStorage.removeItem(CG_USER);
+  CUR_USER=null;IS_OWNER=false;
+  document.getElementById('_userpill')?.remove();
   document.querySelectorAll('._actbar').forEach(b=>b.remove());
-  document.querySelectorAll('.tc-body.open').forEach(body=>{
-    const card=body.closest('.tc-card');
-    if(card?.dataset.tcid)buildBar(card,card.dataset.tcid,body);
+  document.querySelectorAll('[data-editable]').forEach(el=>{
+    el.style.cursor='';el.style.outline='';el.onmouseenter=null;el.onmouseleave=null;el.onclick=null;
+  });
+  showLoginGate();
+}
+
+// ── USER PILL (topbar) ────────────────────────────────────────
+function updateUserPill(){
+  document.getElementById('_userpill')?.remove();
+  const p=document.createElement('div');
+  p.id='_userpill';
+  p.style.cssText='display:flex;align-items:center;gap:8px;padding:3px 10px 3px 4px;background:#2a2a2a;border-radius:100px;border:1px solid #444;cursor:default';
+  const av=document.createElement('div');
+  av.style.cssText=`width:24px;height:24px;border-radius:50%;background:${avc(CUR_USER.email)};color:#fff;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;flex-shrink:0`;
+  av.textContent=avi(CUR_USER.name);
+  const info=document.createElement('div');
+  info.style.cssText='display:flex;flex-direction:column;line-height:1.2';
+  info.innerHTML=`<span style="font-size:10px;font-weight:700;color:#fff">${esc(CUR_USER.name)}</span><span style="font-size:9px;color:${IS_OWNER?'#60a5fa':'#4ade80'}">${IS_OWNER?'Owner':'Reviewer'}</span>`;
+  const out=document.createElement('button');
+  out.textContent='Sign out';
+  out.style.cssText='font-size:9px;color:#888;background:none;border:none;cursor:pointer;padding:0;font-family:inherit;margin-left:2px';
+  out.onclick=signOut;
+  p.appendChild(av);p.appendChild(info);p.appendChild(out);
+  document.querySelector('.search-wrap')?.before(p);
+}
+
+// ── OWNER: make doc elements click-to-edit ────────────────────
+function applyOwnerMode(){
+  if(!IS_OWNER)return;
+  const targets=[
+    {sel:'.page-h1',type:'input'},
+    {sel:'.sec-h2',type:'input'},
+    {sel:'.snum',type:'input'},
+    {sel:'.callout-body p',type:'textarea'},
+    {sel:'.callout-body li',type:'input'},
+    {sel:'.ssb-desc',type:'textarea'},
+    {sel:'.wiki-table td',type:'input'},
+    {sel:'.ov-desc',type:'textarea'},
+    {sel:'.topbar-title',type:'input'},
+  ];
+  targets.forEach(({sel,type})=>{
+    document.querySelectorAll(sel).forEach((el,i)=>{
+      if(el.dataset.editable)return;
+      el.dataset.editable='1';
+      // give it a stable key
+      if(!el.dataset.editField)el.dataset.editField=sel.replace(/[^a-z0-9]/g,'-')+'-'+i;
+      el.style.cursor='pointer';
+      el.onmouseenter=()=>{el.style.outline='2px dashed #3B82F6';el.style.outlineOffset='2px';};
+      el.onmouseleave=()=>{el.style.outline='';el.style.outlineOffset='';};
+      el.onclick=e=>{e.stopPropagation();openInlineEdit(el,type);};
+    });
   });
 }
 
-// ── INLINE EDIT: click any element to edit it ─────────────────
 function openInlineEdit(el,type){
   document.getElementById('_ied')?.remove();
   const rect=el.getBoundingClientRect();
-  const originalVal=el.dataset.currentVal||el.textContent.trim();
-
-  const wrap=document.createElement('div');
-  wrap.id='_ied';
-  wrap.style.cssText=`position:fixed;top:${Math.min(rect.bottom+4,window.innerHeight-160)}px;left:${Math.max(rect.left,8)}px;z-index:7000;background:#fff;border-radius:8px;box-shadow:0 4px 24px rgba(0,0,0,.2);padding:10px;width:${Math.max(rect.width,280)}px;max-width:calc(100vw-16px)`;
-
-  const inp=document.createElement(type==='textarea'?'textarea':'input');
-  inp.value=originalVal;
-  inp.style.cssText='width:100%;border:1px solid #e1e1e1;border-radius:5px;padding:7px 9px;font-size:13px;font-family:inherit;outline:none;resize:vertical;line-height:1.5';
-  if(type==='textarea'){inp.rows=3;}
-
+  const cur=el.dataset.savedVal||el.textContent.trim();
+  const w=document.createElement('div');
+  w.id='_ied';
+  const top=Math.min(rect.bottom+6,window.innerHeight-180);
+  const left=Math.max(rect.left,8);
+  w.style.cssText=`position:fixed;top:${top}px;left:${left}px;z-index:7500;background:#fff;border-radius:9px;box-shadow:0 4px 28px rgba(0,0,0,.22);padding:12px;width:${Math.max(rect.width+40,300)}px;max-width:calc(100vw-16px)`;
+  const inp=type==='textarea'?document.createElement('textarea'):document.createElement('input');
+  inp.value=cur;
+  inp.style.cssText='width:100%;border:1.5px solid #3B82F6;border-radius:6px;padding:8px 10px;font-size:13px;font-family:inherit;outline:none;resize:vertical;line-height:1.5;color:#222';
+  if(type==='textarea')inp.rows=3;
   const btns=document.createElement('div');
   btns.style.cssText='display:flex;gap:7px;margin-top:8px;justify-content:flex-end';
-
-  const cancel=document.createElement('button');
-  cancel.textContent='Cancel';
-  cancel.style.cssText='padding:5px 14px;border:1px solid #e1e1e1;border-radius:5px;font-size:12px;cursor:pointer;font-family:inherit;background:#fff;color:#555';
-  cancel.onclick=()=>wrap.remove();
-
-  const save=document.createElement('button');
-  save.textContent='Save';
-  save.style.cssText='padding:5px 16px;border:none;border-radius:5px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;background:#0265DC;color:#fff';
+  const cancel=Object.assign(document.createElement('button'),{textContent:'Cancel'});
+  cancel.style.cssText='padding:5px 14px;border:1px solid #e1e1e1;border-radius:6px;font-size:12px;cursor:pointer;font-family:inherit;background:#fff;color:#555';
+  cancel.onclick=()=>w.remove();
+  const save=Object.assign(document.createElement('button'),{textContent:'Save'});
+  save.style.cssText='padding:5px 18px;border:none;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;background:#0265DC;color:#fff';
   save.onclick=()=>{
-    const val=inp.value;
-    el.textContent=val;
-    el.dataset.currentVal=val;
-    // persist
-    const key=el.dataset.editField||el.className+'-'+el.textContent.slice(0,10);
+    const val=inp.value.trim();
+    el.textContent=val;el.dataset.savedVal=val;
     const all=ldJ(CG_EDITS);
     all['__doc__']=all['__doc__']||{};
-    all['__doc__'][key]=val;
+    all['__doc__'][el.dataset.editField]=val;
     svJ(CG_EDITS,all);
-    wrap.remove();
-    wT('Saved');
+    w.remove();wT('Saved');
   };
-
-  btns.appendChild(cancel);btns.appendChild(save);
-  wrap.appendChild(inp);wrap.appendChild(btns);
-  document.body.appendChild(wrap);
+  btns.append(cancel,save);w.append(inp,btns);document.body.appendChild(w);
   inp.focus();inp.select();
-
-  // close on outside click
   setTimeout(()=>{
-    document.addEventListener('mousedown',function h(e){
-      if(!wrap.contains(e.target)){wrap.remove();document.removeEventListener('mousedown',h);}
-    });
-  },50);
+    document.addEventListener('mousedown',function h(e){if(!w.contains(e.target)){w.remove();document.removeEventListener('mousedown',h);}});
+  },60);
 }
 
-// ── TC CARD BAR (per-card actions) ────────────────────────────
+// ── TC CARD BAR ───────────────────────────────────────────────
 function tagCards(){
   document.querySelectorAll('.tc-card').forEach(card=>{
     if(!card.dataset.tcid){
@@ -2064,8 +2060,7 @@ function tagCards(){
       if(idEl)card.dataset.tcid=idEl.textContent.trim().split('\n')[0].trim();
     }
     const tcId=card.dataset.tcid;if(!tcId)return;
-
-    // comment badge
+    // comment badge in title
     if(!card.querySelector('._cb')){
       const titleEl=card.querySelector('.tc-title');
       if(titleEl){
@@ -2076,14 +2071,12 @@ function tagCards(){
         titleEl.appendChild(b);
       }
     }
-
     if(!card.dataset.watched){
       card.dataset.watched='1';
       new MutationObserver(()=>{
         const body=card.querySelector('.tc-body');
         if(!body||!body.classList.contains('open')||body.querySelector('._actbar'))return;
         buildBar(card,tcId,body);
-        if(ROLE==='owner')applyOwnerMode();
       }).observe(card,{attributes:true,attributeFilter:['class'],subtree:true});
     }
   });
@@ -2099,71 +2092,63 @@ function buildBar(card,tcId,body){
     const b=document.createElement('button');
     b.innerHTML=label;
     b.style.cssText=`padding:5px 13px;background:${bg};color:${col};border:1px solid ${bdr};border-radius:5px;font-size:11px;cursor:pointer;font-family:inherit;font-weight:600`;
-    b.onmouseover=()=>b.style.opacity='.8';b.onmouseout=()=>b.style.opacity='1';
     b.onclick=fn;bar.appendChild(b);
   };
 
-  if(ROLE==='owner'){
+  if(IS_OWNER){
     mk('✏ Title','#EFF6FF','#1e40af','#BFDBFE',()=>{
       const el=card.querySelector('.tc-title');
       openTCEdit(tcId,'ti',el?Array.from(el.childNodes).filter(n=>n.nodeType===3).map(n=>n.textContent).join('').trim():'');
     });
     mk('✏ Steps','#EFF6FF','#1e40af','#BFDBFE',()=>{
-      const items=card.querySelectorAll('.tc-steps ol li');
-      openTCEdit(tcId,'steps',Array.from(items).map(li=>li.textContent.trim()).join('\n'));
+      openTCEdit(tcId,'steps',Array.from(card.querySelectorAll('.tc-steps ol li')).map(li=>li.textContent.trim()).join('\n'));
     });
     mk('✏ Expected','#EFF6FF','#1e40af','#BFDBFE',()=>{
-      const el=card.querySelector('.tc-exp');
-      openTCEdit(tcId,'ex',el?el.textContent.trim():'');
+      const el=card.querySelector('.tc-exp');openTCEdit(tcId,'ex',el?el.textContent.trim():'');
     });
-    // divider
-    const d=document.createElement('div');d.style.cssText='width:1px;height:18px;background:#ddd;flex-shrink:0';bar.appendChild(d);
-    mk('💬 Comments','#fff','#464646','#ddd',()=>{
-      const t=card.querySelector('.tc-title');openDrawer(tcId,t?t.textContent.trim():tcId);
+    const d=document.createElement('div');d.style.cssText='width:1px;height:18px;background:#ddd';bar.appendChild(d);
+    mk('💬 Comments','#fff','#555','#ddd',()=>{
+      openDrawer(tcId,card.querySelector('.tc-title')?.textContent.trim()||tcId);
     });
-    // delete TC
     const del=document.createElement('button');
-    del.innerHTML='🗑 Delete';
+    del.innerHTML='🗑 Delete case';
     del.style.cssText='margin-left:auto;padding:5px 13px;background:#FFF0F1;color:#D7373F;border:1px solid #FECDD3;border-radius:5px;font-size:11px;cursor:pointer;font-family:inherit;font-weight:600';
-    del.onclick=()=>deleteTC(tcId,card);
-    bar.appendChild(del);
-    // export
+    del.onclick=()=>deleteTC(tcId,card);bar.appendChild(del);
     const exp=document.createElement('button');
     exp.innerHTML='⬇ Export';
     exp.style.cssText='padding:5px 12px;background:#ECFDF5;color:#065f46;border:1px solid #A7F3D0;border-radius:5px;font-size:11px;cursor:pointer;font-family:inherit';
     exp.onclick=exportAll;bar.appendChild(exp);
-  } else {
+  } else if(CUR_USER){
     mk('💬 Add comment','#ECFDF5','#065f46','#A7F3D0',()=>{
-      const t=card.querySelector('.tc-title');openDrawer(tcId,t?t.textContent.trim():tcId);
+      openDrawer(tcId,card.querySelector('.tc-title')?.textContent.trim()||tcId);
     });
     const note=document.createElement('span');
-    note.textContent='Reviewer — comment only';note.style.cssText='font-size:10px;color:#aaa;margin-left:4px';
+    note.style.cssText='font-size:10px;color:#aaa;margin-left:4px';
+    note.textContent='Reviewer — comment only';
     bar.appendChild(note);
   }
-
   body.appendChild(bar);
 }
 
-// ── TC FIELD EDIT MODAL ───────────────────────────────────────
+// ── TC EDIT MODAL ─────────────────────────────────────────────
 function openTCEdit(tcId,field,val){
-  document.getElementById('_tcmod')?.remove();
+  document.getElementById('_tcm')?.remove();
   const labels={ti:'Title',steps:'Steps (one per line)',ex:'Expected Result'};
   const isArea=field!=='ti';
   const ov=document.createElement('div');
-  ov.id='_tcmod';
+  ov.id='_tcm';
   ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:7500;display:flex;align-items:center;justify-content:center;font-family:-apple-system,sans-serif';
   ov.innerHTML=`
     <div style="background:#fff;border-radius:10px;width:600px;max-width:96vw;overflow:hidden;box-shadow:0 8px 48px rgba(0,0,0,.22)">
       <div style="background:#1a1a1a;padding:14px 18px;display:flex;align-items:center;justify-content:space-between">
         <div><div style="font-size:10px;color:#888;margin-bottom:2px">Editing · ${esc(tcId)}</div><div style="font-size:14px;font-weight:700;color:#fff">${labels[field]}</div></div>
-        <button onclick="document.getElementById('_tcmod').remove()" style="background:#333;border:none;color:#fff;width:30px;height:30px;border-radius:7px;cursor:pointer;font-size:18px">×</button>
+        <button onclick="document.getElementById('_tcm').remove()" style="background:#333;border:none;color:#fff;width:30px;height:30px;border-radius:7px;cursor:pointer;font-size:18px">×</button>
       </div>
       <div style="padding:18px">
-        ${isArea
-          ? `<textarea id="_tci" rows="8" style="width:100%;border:1px solid #e1e1e1;border-radius:6px;padding:10px 12px;font-size:13px;line-height:1.6;resize:vertical;outline:none;font-family:inherit">${esc(val)}</textarea>`
-          : `<input id="_tci" value="${esc(val)}" style="width:100%;border:1px solid #e1e1e1;border-radius:6px;padding:10px 12px;font-size:13px;outline:none;font-family:inherit">`}
+        ${isArea?`<textarea id="_tci" rows="8" style="width:100%;border:1px solid #e1e1e1;border-radius:6px;padding:10px 12px;font-size:13px;line-height:1.6;resize:vertical;outline:none;font-family:inherit">${esc(val)}</textarea>`
+                :`<input id="_tci" value="${esc(val)}" style="width:100%;border:1px solid #e1e1e1;border-radius:6px;padding:10px 12px;font-size:13px;outline:none;font-family:inherit">`}
         <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:14px">
-          <button onclick="document.getElementById('_tcmod').remove()" style="padding:7px 16px;border:1px solid #e1e1e1;border-radius:6px;background:#fff;font-size:12px;cursor:pointer;color:#555;font-family:inherit">Cancel</button>
+          <button onclick="document.getElementById('_tcm').remove()" style="padding:7px 16px;border:1px solid #e1e1e1;border-radius:6px;background:#fff;font-size:12px;cursor:pointer;color:#555;font-family:inherit">Cancel</button>
           <button onclick="saveTCEdit('${tcId}','${field}')" style="padding:7px 20px;border:none;border-radius:6px;background:#0265DC;color:#fff;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">Save changes</button>
         </div>
       </div>
@@ -2178,19 +2163,16 @@ function saveTCEdit(tcId,field){
   const inp=document.getElementById('_tci');if(!inp)return;
   const val=inp.value;
   const all=ldJ(CG_EDITS);
-  if(!all[tcId])all[tcId]={};
-  all[tcId][field]=val;
-  svJ(CG_EDITS,all);
+  if(!all[tcId])all[tcId]={};all[tcId][field]=val;svJ(CG_EDITS,all);
   applyTCEdit(tcId,field,val);
-  document.getElementById('_tcmod').remove();
-  wT('Saved — '+tcId);
+  document.getElementById('_tcm').remove();wT('Saved — '+tcId);
 }
 
 function applyTCEdit(tcId,field,val){
   const card=document.querySelector(`[data-tcid="${tcId}"]`);if(!card)return;
   if(field==='ti'){
     const el=card.querySelector('.tc-title');
-    if(el){const tn=document.createTextNode(val);el.replaceChild(tn,el.childNodes[0]);}
+    if(el&&el.childNodes[0])el.childNodes[0].textContent=val;
   }
   if(field==='ex'){const el=card.querySelector('.tc-exp');if(el)el.textContent=val;}
   if(field==='steps'){
@@ -2205,27 +2187,26 @@ function applyAllEdits(){
     if(tcId==='__doc__')return;
     Object.entries(fields).forEach(([f,v])=>applyTCEdit(tcId,f,v));
   });
-  // doc-level edits: match by editField key
-  const docEdits=all['__doc__']||{};
-  Object.entries(docEdits).forEach(([key,val])=>{
+  // doc-level
+  const doc=all['__doc__']||{};
+  Object.entries(doc).forEach(([key,val])=>{
     const el=document.querySelector(`[data-edit-field="${key}"]`);
-    if(el){el.textContent=val;el.dataset.currentVal=val;}
+    if(el){el.textContent=val;el.dataset.savedVal=val;}
   });
 }
 
-// ── DELETE TEST CASE ──────────────────────────────────────────
+// ── DELETE TC ─────────────────────────────────────────────────
 function deleteTC(tcId,card){
-  if(!confirm(`Delete ${tcId}? This removes it from view (can be restored by clearing browser data).`))return;
-  const deleted=ldA(CG_DELETED);
-  if(!deleted.includes(tcId)){deleted.push(tcId);svJ(CG_DELETED,deleted);}
+  if(!confirm(`Delete ${tcId}? It will be hidden from view.`))return;
+  const del=ldA(CG_DELETED);
+  if(!del.includes(tcId)){del.push(tcId);svJ(CG_DELETED,del);}
   card.style.transition='opacity .3s';card.style.opacity='0';
-  setTimeout(()=>{card.style.display='none';},300);
+  setTimeout(()=>card.style.display='none',300);
   wT(tcId+' deleted');
 }
 
 function applyDeleted(){
-  const deleted=ldA(CG_DELETED);
-  deleted.forEach(id=>{
+  ldA(CG_DELETED).forEach(id=>{
     const card=document.querySelector(`[data-tcid="${id}"]`);
     if(card)card.style.display='none';
   });
@@ -2234,12 +2215,10 @@ function applyDeleted(){
 // ── COMMENT DRAWER ────────────────────────────────────────────
 function openDrawer(tcId,tcTitle){
   document.getElementById('_drw')?.remove();
-  const all=ldJ(CG_COMMENTS);
-  const cmts=all[tcId]||[];
+  const all=ldJ(CG_COMMENTS);const cmts=all[tcId]||[];
   const d=document.createElement('div');
   d.id='_drw';
   d.style.cssText='position:fixed;top:0;right:0;width:390px;height:100vh;background:#fff;border-left:1px solid #e1e1e1;z-index:7000;display:flex;flex-direction:column;font-family:-apple-system,sans-serif;box-shadow:-4px 0 24px rgba(0,0,0,.14)';
-
   const rows=cmts.map((c,i)=>`
     <div style="padding:12px 14px;border-bottom:1px solid #f5f5f5;${c.resolved?'opacity:.5':''}">
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:5px">
@@ -2252,7 +2231,6 @@ function openDrawer(tcId,tcTitle){
       ${(c.replies||[]).map(r=>`<div style="margin-top:6px;padding:6px 9px;background:#fafafa;border-left:2px solid #e1e1e1;border-radius:0 4px 4px 0"><div style="display:flex;align-items:center;gap:6px;margin-bottom:2px"><div style="width:16px;height:16px;border-radius:50%;background:${avc(r.author)};color:#fff;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700">${avi(r.author)}</div><span style="font-size:11px;font-weight:600">${esc(r.author)}</span><span style="font-size:10px;color:#aaa">${r.time}</span></div><div style="font-size:12px;color:#464646;white-space:pre-wrap">${esc(r.text)}</div></div>`).join('')}
       ${!c.resolved?`<div style="margin-top:7px;display:flex;gap:5px"><input id="rn-${i}" placeholder="Name" style="width:90px;border:1px solid #e1e1e1;border-radius:4px;padding:4px 7px;font-size:11px;outline:none;font-family:inherit"><input id="rt-${i}" placeholder="Reply…" style="flex:1;border:1px solid #e1e1e1;border-radius:4px;padding:4px 7px;font-size:11px;outline:none;font-family:inherit"><button onclick="postReply('${tcId}',${i})" style="padding:4px 10px;background:#0265DC;color:#fff;border:none;border-radius:4px;font-size:11px;cursor:pointer">↩</button></div>`:''}
     </div>`).join('');
-
   d.innerHTML=`
     <div style="background:#1a1a1a;padding:13px 16px;display:flex;align-items:flex-start;gap:10px;flex-shrink:0">
       <div style="flex:1"><div style="font-size:10px;color:#888;margin-bottom:2px">Comments · ${esc(tcId)}</div><div style="font-size:12px;font-weight:700;color:#fff;line-height:1.35">${esc(tcTitle.slice(0,65))}${tcTitle.length>65?'…':''}</div></div>
@@ -2261,7 +2239,7 @@ function openDrawer(tcId,tcTitle){
     <div style="flex:1;overflow-y:auto">${cmts.length===0?'<div style="padding:28px 16px;text-align:center;color:#b3b3b3;font-size:13px">No comments yet — add one below.</div>':rows}</div>
     <div style="border-top:1px solid #e1e1e1;padding:12px 14px;background:#fafafa;flex-shrink:0">
       <div style="font-size:11px;font-weight:700;color:#464646;margin-bottom:7px">Add a comment</div>
-      <input id="_cn" placeholder="Your name" style="width:100%;border:1px solid #e1e1e1;border-radius:5px;padding:7px 10px;font-size:12px;margin-bottom:6px;outline:none;font-family:inherit">
+      <input id="_cn" value="${esc(CUR_USER?.name||'')}" placeholder="Your name" style="width:100%;border:1px solid #e1e1e1;border-radius:5px;padding:7px 10px;font-size:12px;margin-bottom:6px;outline:none;font-family:inherit">
       <textarea id="_ct" placeholder="Write a comment or flag an issue…" rows="3" style="width:100%;border:1px solid #e1e1e1;border-radius:5px;padding:7px 10px;font-size:12px;resize:none;outline:none;font-family:inherit;line-height:1.5"></textarea>
       <button onclick="postComment('${tcId}')" style="margin-top:7px;width:100%;padding:8px;background:#10B981;color:#fff;border:none;border-radius:5px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">Post comment</button>
     </div>`;
@@ -2271,14 +2249,11 @@ function openDrawer(tcId,tcTitle){
 function postComment(tcId){
   const name=(document.getElementById('_cn').value||'').trim();
   const text=(document.getElementById('_ct').value||'').trim();
-  if(!name){const el=document.getElementById('_cn');el.style.borderColor='#D7373F';el.focus();return;}
-  if(!text){const el=document.getElementById('_ct');el.style.borderColor='#D7373F';el.focus();return;}
-  const all=ldJ(CG_COMMENTS);
-  if(!all[tcId])all[tcId]=[];
+  if(!name||!text){wT('Please fill in both fields');return;}
+  const all=ldJ(CG_COMMENTS);if(!all[tcId])all[tcId]=[];
   all[tcId].push({author:name,text,time:ts(),resolved:false,replies:[]});
   svJ(CG_COMMENTS,all);refreshBadges();
-  const card=document.querySelector(`[data-tcid="${tcId}"]`);
-  openDrawer(tcId,card?.querySelector('.tc-title')?.textContent.trim()||tcId);
+  openDrawer(tcId,document.querySelector(`[data-tcid="${tcId}"]`)?.querySelector('.tc-title')?.textContent.trim()||tcId);
   wT('Comment posted on '+tcId);
 }
 
@@ -2291,8 +2266,7 @@ function postReply(tcId,idx){
   if(!all[tcId][idx].replies)all[tcId][idx].replies=[];
   all[tcId][idx].replies.push({author:name,text,time:ts()});
   svJ(CG_COMMENTS,all);refreshBadges();
-  const card=document.querySelector(`[data-tcid="${tcId}"]`);
-  openDrawer(tcId,card?.querySelector('.tc-title')?.textContent.trim()||tcId);
+  openDrawer(tcId,document.querySelector(`[data-tcid="${tcId}"]`)?.querySelector('.tc-title')?.textContent.trim()||tcId);
   wT('Reply posted');
 }
 
@@ -2300,13 +2274,11 @@ function resolveCmt(tcId,idx){
   const all=ldJ(CG_COMMENTS);
   if(all[tcId]?.[idx])all[tcId][idx].resolved=true;
   svJ(CG_COMMENTS,all);refreshBadges();
-  const card=document.querySelector(`[data-tcid="${tcId}"]`);
-  openDrawer(tcId,card?.querySelector('.tc-title')?.textContent.trim()||tcId);
+  openDrawer(tcId,document.querySelector(`[data-tcid="${tcId}"]`)?.querySelector('.tc-title')?.textContent.trim()||tcId);
   wT('Resolved');
 }
 
-function openCount(tcId){return(ldJ(CG_COMMENTS)[tcId]||[]).filter(c=>!c.resolved).length;}
-
+function openCount(id){return(ldJ(CG_COMMENTS)[id]||[]).filter(c=>!c.resolved).length;}
 function refreshBadges(){
   document.querySelectorAll('.tc-card[data-tcid]').forEach(card=>{
     const id=card.dataset.tcid;const n=openCount(id);
@@ -2316,41 +2288,226 @@ function refreshBadges(){
   });
 }
 
-// ── EXPORT ────────────────────────────────────────────────────
 function exportAll(){
   const data=JSON.stringify({edits:ldJ(CG_EDITS),comments:ldJ(CG_COMMENTS),deleted:ldA(CG_DELETED)},null,2);
   const a=document.createElement('a');
   a.href=URL.createObjectURL(new Blob([data],{type:'application/json'}));
-  a.download='qa_wiki_export.json';a.click();
-  wT('Exported all data');
+  a.download='qa_wiki_export.json';a.click();wT('Exported');
+}
+
+
+// ── SECTION-LEVEL COMMENTS (every page, every heading) ───────
+function getSectionCmts(sectionId){return(ldJ(CG_COMMENTS)['__sec__'+sectionId]||[]);}
+function sectionOpenCount(sectionId){return getSectionCmts(sectionId).filter(c=>!c.resolved).length;}
+
+function openSectionDrawer(sectionId, sectionLabel){
+  document.getElementById('_drw')?.remove();
+  const cmts = getSectionCmts(sectionId);
+  const d = document.createElement('div');
+  d.id='_drw';
+  d.style.cssText='position:fixed;top:0;right:0;width:390px;height:100vh;background:#fff;border-left:1px solid #e1e1e1;z-index:7000;display:flex;flex-direction:column;font-family:-apple-system,sans-serif;box-shadow:-4px 0 24px rgba(0,0,0,.14)';
+
+  const rows=cmts.map((c,i)=>`
+    <div style="padding:12px 14px;border-bottom:1px solid #f5f5f5;${c.resolved?'opacity:.5':''}">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:5px">
+        <div style="width:26px;height:26px;border-radius:50%;background:${avc(c.author)};color:#fff;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;flex-shrink:0">${avi(c.author)}</div>
+        <div style="flex:1"><div style="font-size:12px;font-weight:600;color:#222">${esc(c.author)}</div><div style="font-size:10px;color:#aaa">${c.time}</div></div>
+        ${c.resolved?'<span style="font-size:9px;padding:1px 7px;border-radius:3px;background:#EDFAF5;color:#12805C;font-weight:700">Resolved</span>'
+          :`<button onclick="resolveSectionCmt('${sectionId}',${i})" style="font-size:10px;color:#555;background:#fff;border:1px solid #e1e1e1;border-radius:4px;padding:2px 8px;cursor:pointer;font-family:inherit">Resolve</button>`}
+      </div>
+      <div style="font-size:13px;color:#464646;line-height:1.55;white-space:pre-wrap">${esc(c.text)}</div>
+      ${(c.replies||[]).map(r=>`<div style="margin-top:6px;padding:6px 9px;background:#fafafa;border-left:2px solid #e1e1e1;border-radius:0 4px 4px 0"><div style="display:flex;align-items:center;gap:6px;margin-bottom:2px"><div style="width:16px;height:16px;border-radius:50%;background:${avc(r.author)};color:#fff;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700">${avi(r.author)}</div><span style="font-size:11px;font-weight:600">${esc(r.author)}</span><span style="font-size:10px;color:#aaa">${r.time}</span></div><div style="font-size:12px;color:#464646;white-space:pre-wrap">${esc(r.text)}</div></div>`).join('')}
+      ${!c.resolved?`<div style="margin-top:7px;display:flex;gap:5px"><input id="srn-${i}" placeholder="Name" style="width:90px;border:1px solid #e1e1e1;border-radius:4px;padding:4px 7px;font-size:11px;outline:none;font-family:inherit"><input id="srt-${i}" placeholder="Reply…" style="flex:1;border:1px solid #e1e1e1;border-radius:4px;padding:4px 7px;font-size:11px;outline:none;font-family:inherit"><button onclick="postSectionReply('${sectionId}',${i})" style="padding:4px 10px;background:#0265DC;color:#fff;border:none;border-radius:4px;font-size:11px;cursor:pointer">↩</button></div>`:''}
+    </div>`).join('');
+
+  d.innerHTML=`
+    <div style="background:#1a1a1a;padding:13px 16px;display:flex;align-items:flex-start;gap:10px;flex-shrink:0">
+      <div style="flex:1">
+        <div style="font-size:10px;color:#888;margin-bottom:2px">Section comments</div>
+        <div style="font-size:13px;font-weight:700;color:#fff;line-height:1.35">${esc(sectionLabel)}</div>
+      </div>
+      <button onclick="document.getElementById('_drw').remove()" style="background:#333;border:none;color:#fff;width:28px;height:28px;border-radius:6px;cursor:pointer;font-size:18px;flex-shrink:0">×</button>
+    </div>
+    <div style="flex:1;overflow-y:auto">${cmts.length===0?'<div style="padding:28px 16px;text-align:center;color:#b3b3b3;font-size:13px">No comments on this section yet.</div>':rows}</div>
+    <div style="border-top:1px solid #e1e1e1;padding:12px 14px;background:#fafafa;flex-shrink:0">
+      <div style="font-size:11px;font-weight:700;color:#464646;margin-bottom:7px">Add a comment on this section</div>
+      <input id="_scn" value="${esc(CUR_USER?.name||'')}" placeholder="Your name" style="width:100%;border:1px solid #e1e1e1;border-radius:5px;padding:7px 10px;font-size:12px;margin-bottom:6px;outline:none;font-family:inherit">
+      <textarea id="_sct" placeholder="Comment on this section…" rows="3" style="width:100%;border:1px solid #e1e1e1;border-radius:5px;padding:7px 10px;font-size:12px;resize:none;outline:none;font-family:inherit;line-height:1.5"></textarea>
+      <button onclick="postSectionComment('${sectionId}','${esc(sectionLabel)}')" style="margin-top:7px;width:100%;padding:8px;background:#10B981;color:#fff;border:none;border-radius:5px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">Post comment</button>
+    </div>`;
+  document.body.appendChild(d);
+}
+
+function postSectionComment(sectionId, label){
+  const name=(document.getElementById('_scn').value||'').trim();
+  const text=(document.getElementById('_sct').value||'').trim();
+  if(!name||!text){wT('Please fill in both fields');return;}
+  const all=ldJ(CG_COMMENTS);
+  const key='__sec__'+sectionId;
+  if(!all[key])all[key]=[];
+  all[key].push({author:name,text,time:ts(),resolved:false,replies:[]});
+  svJ(CG_COMMENTS,all);
+  refreshSectionBadges();
+  openSectionDrawer(sectionId,label);
+  wT('Comment posted on section');
+}
+
+function postSectionReply(sectionId,idx){
+  const name=(document.getElementById('srn-'+idx).value||'').trim();
+  const text=(document.getElementById('srt-'+idx).value||'').trim();
+  if(!name||!text)return;
+  const all=ldJ(CG_COMMENTS);
+  const key='__sec__'+sectionId;
+  if(!all[key]?.[idx])return;
+  if(!all[key][idx].replies)all[key][idx].replies=[];
+  all[key][idx].replies.push({author:name,text,time:ts()});
+  svJ(CG_COMMENTS,all);
+  refreshSectionBadges();
+  // reopen drawer with current label
+  const btn=document.querySelector(`[data-sec-id="${sectionId}"]`);
+  openSectionDrawer(sectionId, btn?.dataset.secLabel||sectionId);
+  wT('Reply posted');
+}
+
+function resolveSectionCmt(sectionId,idx){
+  const all=ldJ(CG_COMMENTS);
+  const key='__sec__'+sectionId;
+  if(all[key]?.[idx])all[key][idx].resolved=true;
+  svJ(CG_COMMENTS,all);
+  refreshSectionBadges();
+  const btn=document.querySelector(`[data-sec-id="${sectionId}"]`);
+  openSectionDrawer(sectionId, btn?.dataset.secLabel||sectionId);
+  wT('Resolved');
+}
+
+function refreshSectionBadges(){
+  document.querySelectorAll('[data-sec-id]').forEach(btn=>{
+    const id=btn.dataset.secId;
+    const n=sectionOpenCount(id);
+    const badge=btn.querySelector('._secbadge');
+    if(badge){
+      badge.textContent=n?'💬 '+n:'💬';
+      badge.style.background=n?'#FEF3C7':'transparent';
+      badge.style.color=n?'#92400E':'#aaa';
+      badge.style.border=n?'1px solid #F0C04A':'1px solid #ddd';
+    }
+  });
+}
+
+// Inject a comment button next to every section heading and page header
+function injectSectionCommentBtns(){
+  // Targets: page headers, section headers, table headings on corrections/coverage
+  const sections=[
+    // Overview page header
+    {sel:'#page-overview .page-hdr',  id:'overview',   label:'Dashboard Overview'},
+    // Corrections page
+    {sel:'#page-corrections .page-hdr', id:'corrections', label:'Corrections Log'},
+    // Coverage page
+    {sel:'#page-coverage .page-hdr',  id:'coverage',   label:'Coverage Map'},
+    // Each test section page header
+    {sel:'#page-ep .page-hdr',        id:'ep',         label:'Entry Points'},
+    {sel:'#page-autogen .page-hdr',   id:'autogen',    label:'Auto-Generation'},
+    {sel:'#page-review .page-hdr',    id:'review',     label:'Review Citations'},
+    {sel:'#page-panel .page-hdr',     id:'panel',      label:'Citations Panel'},
+    {sel:'#page-search .page-hdr',    id:'search',     label:'Search and Add'},
+    {sel:'#page-export .page-hdr',    id:'export',     label:'Copy and Export'},
+    {sel:'#page-empty .page-hdr',     id:'empty',      label:'Empty States'},
+    {sel:'#page-errors .page-hdr',    id:'errors',     label:'Error Handling'},
+    {sel:'#page-a11y .page-hdr',      id:'a11y',       label:'Accessibility'},
+    {sel:'#page-sources .page-hdr',   id:'sources',    label:'Sources Integration'},
+  ];
+
+  // Also inject on every .sec-hdr (sub-section headings inside pages)
+  document.querySelectorAll('.sec-hdr').forEach((hdr,i)=>{
+    if(hdr.dataset.secInjected)return;
+    hdr.dataset.secInjected='1';
+    const label=hdr.querySelector('.sec-h2')?.textContent.trim()||'Section '+i;
+    const secId='sec-hdr-'+i;
+    addSectionBtn(hdr, secId, label, 'flex-end');
+  });
+
+  // Inject on page headers
+  sections.forEach(({sel,id,label})=>{
+    const el=document.querySelector(sel);
+    if(!el||el.dataset.secInjected)return;
+    el.dataset.secInjected='1';
+    addSectionBtn(el, id, label, 'top-right');
+  });
+
+  // Also: stat-row, ssb (source status block), callout blocks, wiki-table headings
+  document.querySelectorAll('.ssb,.callout,.stat-row,.ov-grid').forEach((el,i)=>{
+    if(el.dataset.secInjected)return;
+    el.dataset.secInjected='1';
+    const label=el.classList.contains('ssb')?'Source Ingestion Status':
+                el.classList.contains('callout')?'Callout Note '+(i+1):
+                el.classList.contains('stat-row')?'Stats Summary':
+                'Section Grid';
+    addSectionBtn(el,'blk-'+i,label,'inline');
+  });
+
+  refreshSectionBadges();
+}
+
+function addSectionBtn(container, secId, label, placement){
+  if(container.querySelector(`[data-sec-id="${secId}"]`))return;
+
+  const btn=document.createElement('button');
+  btn.dataset.secId=secId;
+  btn.dataset.secLabel=label;
+  btn.style.cssText='display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:5px;font-size:10px;font-weight:600;cursor:pointer;font-family:inherit;background:transparent;border:1px solid #ddd;color:#aaa;transition:all .15s;flex-shrink:0;white-space:nowrap;vertical-align:middle';
+  btn.onmouseover=()=>{btn.style.borderColor='#10B981';btn.style.color='#065f46';btn.style.background='#ECFDF5';};
+  btn.onmouseout=()=>{
+    const n=sectionOpenCount(secId);
+    btn.style.borderColor=n?'#F0C04A':'#ddd';
+    btn.style.color=n?'#92400E':'#aaa';
+    btn.style.background=n?'#FEF3C7':'transparent';
+  };
+  btn.onclick=(e)=>{e.stopPropagation();openSectionDrawer(secId,label);};
+
+  const badge=document.createElement('span');
+  badge.className='_secbadge';
+  badge.textContent='💬';
+  badge.style.cssText='font-size:10px';
+  btn.appendChild(badge);
+
+  if(placement==='flex-end'||placement==='top-right'){
+    // put it inline at end of the header
+    container.style.display=container.style.display||'flex';
+    container.style.alignItems='center';
+    container.appendChild(btn);
+  } else {
+    // inline block above or after element
+    btn.style.marginBottom='8px';
+    container.insertAdjacentElement('beforebegin',btn);
+  }
 }
 
 // ── BOOT ──────────────────────────────────────────────────────
 function boot(){
   tagCards();
-  if(ROLE==='owner')applyOwnerMode();
-  applyAllEdits();
-  applyDeleted();
-  refreshBadges();
+  if(IS_OWNER)applyOwnerMode();
+  applyAllEdits();applyDeleted();refreshBadges();
+  injectSectionCommentBtns();
 }
 
 const _orig=window.showPage;
 if(typeof _orig==='function'){
   window.showPage=function(id){
     _orig(id);
-    setTimeout(()=>{
-      tagCards();
-      if(ROLE==='owner')applyOwnerMode();
-      applyAllEdits();applyDeleted();refreshBadges();
-    },150);
+    setTimeout(()=>{tagCards();if(IS_OWNER)applyOwnerMode();applyAllEdits();applyDeleted();refreshBadges();injectSectionCommentBtns();},150);
   };
 }
 
+// ── INIT ──────────────────────────────────────────────────────
 setTimeout(()=>{
-  if(!ROLE){showGate();}
-  else{updatePill();}
-  boot();
-},350);
+  const saved=ldJ(CG_USER);
+  if(saved&&saved.email){
+    CUR_USER=saved;IS_OWNER=(saved.email===OWNER_EMAIL);
+    updateUserPill();boot();
+  } else {
+    showLoginGate();
+  }
+},300);
 
 </script>
 </body>
