@@ -1,0 +1,1858 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Citation Generator — QA Wiki v2</title>
+<style>
+:root {
+  --blue:#0265DC;--blue-light:#E8F0FE;--blue-mid:#378EF0;
+  --red:#D7373F;--red-light:#FFF0F1;
+  --orange:#E68619;--orange-light:#FFF8EC;
+  --green:#12805C;--green-light:#EDFAF5;
+  --purple:#7E56C2;--purple-light:#F5F0FF;
+  --teal:#0B7489;--teal-light:#EAF8FB;
+  --gray0:#FAFAFA;--gray1:#F5F5F5;--gray2:#E1E1E1;
+  --gray3:#B3B3B3;--gray4:#6E6E6E;--gray5:#464646;--gray6:#222;
+  --white:#FFF;--sidebar-w:256px;--header-h:54px;
+  --font:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+  --mono:'SF Mono','Fira Code',monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{font-family:var(--font);background:var(--gray0);color:var(--gray6);font-size:14px;line-height:1.6}
+
+/* TOP BAR */
+.topbar{position:fixed;top:0;left:0;right:0;height:var(--header-h);background:#1a1a1a;display:flex;align-items:center;padding:0 18px;gap:14px;z-index:200;border-bottom:1px solid #333}
+.topbar-logo{display:flex;align-items:center;gap:8px;color:#fff;font-weight:700;font-size:15px;cursor:pointer}
+.tb-divider{width:1px;height:20px;background:#444}
+.topbar-title{color:#bbb;font-size:13px;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tb-chip{padding:3px 9px;border-radius:100px;font-size:11px;font-weight:700;border:1px solid}
+.tb-ok{background:#0d1f0d;color:#4ade80;border-color:#166534}
+.tb-warn{background:#1f1200;color:#fb923c;border-color:#92400e}
+.tb-version{background:#1a1040;color:#a78bfa;border-color:#4c1d95}
+.search-wrap{position:relative;margin-left:auto}
+.search-wrap svg{position:absolute;left:8px;top:50%;transform:translateY(-50%);pointer-events:none}
+.search-box{background:#2a2a2a;border:1px solid #444;border-radius:6px;padding:5px 10px 5px 30px;color:#eee;font-size:13px;width:210px;outline:none}
+.search-box::placeholder{color:#666}
+
+/* SIDEBAR */
+.sidebar{position:fixed;top:var(--header-h);left:0;width:var(--sidebar-w);height:calc(100vh - var(--header-h));overflow-y:auto;background:var(--white);border-right:1px solid var(--gray2);padding-bottom:32px;z-index:100}
+.sidebar::-webkit-scrollbar{width:3px}.sidebar::-webkit-scrollbar-thumb{background:var(--gray2)}
+.nav-group-label{padding:14px 14px 4px;font-size:10px;font-weight:800;color:var(--gray3);text-transform:uppercase;letter-spacing:.8px}
+.nav-section{margin-bottom:2px}
+.nav-section-title{display:flex;align-items:center;gap:8px;padding:7px 14px;font-size:12px;font-weight:700;color:var(--gray5);cursor:pointer;user-select:none}
+.nav-section-title:hover{background:var(--gray1)}
+.nav-arrow{margin-left:auto;font-size:10px;color:var(--gray3);transition:transform .18s}
+.nav-section-title.open .nav-arrow{transform:rotate(90deg)}
+.nav-items{display:none;padding-bottom:4px}
+.nav-items.open{display:block}
+.nav-item{display:flex;align-items:center;gap:6px;padding:5px 14px 5px 32px;font-size:12px;color:var(--gray4);cursor:pointer;border-left:2px solid transparent;transition:all .12s}
+.nav-item:hover{background:var(--blue-light);color:var(--blue)}
+.nav-item.active{border-left-color:var(--blue);background:var(--blue-light);color:var(--blue);font-weight:600}
+.nav-item .nc{margin-left:auto;background:var(--gray1);color:var(--gray3);border-radius:10px;padding:1px 7px;font-size:10px;font-weight:700}
+.nav-item.active .nc{background:var(--blue);color:#fff}
+.nav-fix-badge{font-size:9px;padding:1px 4px;border-radius:3px;font-weight:800;margin-left:3px;background:#FEF9C3;color:#854D0E}
+
+/* MAIN */
+.main{margin-left:var(--sidebar-w);margin-top:var(--header-h);min-height:calc(100vh - var(--header-h))}
+.wiki-page{display:none;padding:28px 36px 60px}
+.wiki-page.active{display:block}
+
+/* PAGE HEADER */
+.page-hdr{border-bottom:2px solid var(--gray2);padding-bottom:18px;margin-bottom:24px}
+.breadcrumb{font-size:11px;color:var(--gray3);margin-bottom:6px}
+.breadcrumb a{color:var(--blue);cursor:pointer;text-decoration:none}
+.breadcrumb a:hover{text-decoration:underline}
+.page-h1{font-size:24px;font-weight:800;color:var(--gray6);margin-bottom:10px}
+.page-meta{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.meta-chip{display:flex;align-items:center;gap:4px;font-size:12px;color:var(--gray4);background:var(--gray1);padding:3px 10px;border-radius:100px;border:1px solid var(--gray2)}
+.meta-chip strong{color:var(--gray6)}
+
+/* SOURCE PILLS */
+.sp{display:inline-flex;align-items:center;gap:3px;font-size:10px;font-weight:800;padding:2px 7px;border-radius:100px;letter-spacing:.2px}
+.sp-prd{background:#FEF3C7;color:#92400E}
+.sp-video{background:#FEE2E2;color:#991B1B}
+.sp-figma{background:#F0E8FF;color:#6D28D9}
+.sp-all{background:var(--blue-light);color:var(--blue)}
+.sp-fix{background:#FEF9C3;color:#854D0E}
+
+/* STAT ROW */
+.stat-row{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:24px}
+.stat-card{background:var(--white);border:1px solid var(--gray2);border-radius:8px;padding:14px 16px;min-width:90px;text-align:center;flex:1}
+.snum{font-size:26px;font-weight:800;line-height:1}
+.slabel{font-size:10px;color:var(--gray4);text-transform:uppercase;letter-spacing:.5px;margin-top:3px}
+.sn-tot{color:var(--gray6)}.sn-p0{color:var(--red)}.sn-p1{color:var(--orange)}
+.sn-p2{color:var(--blue)}.sn-det{color:var(--teal)}.sn-jud{color:var(--purple)}
+.sn-fix{color:#D97706}.sn-new{color:var(--green)}
+
+/* CALLOUTS */
+.callout{display:flex;gap:12px;border-radius:8px;padding:13px 15px;margin-bottom:18px;border-left:4px solid}
+.ci{background:var(--blue-light);border-color:var(--blue-mid)}
+.cw{background:var(--orange-light);border-color:var(--orange)}
+.cs{background:var(--green-light);border-color:var(--green)}
+.ce{background:var(--red-light);border-color:var(--red)}
+.cf{background:#FEF9C3;border-color:#D97706}
+.callout-body strong{display:block;font-size:13px;font-weight:700;margin-bottom:2px}
+.callout-body p,.callout-body li{font-size:13px;color:var(--gray5);line-height:1.6}
+.callout-body ul{padding-left:16px}
+
+/* SOURCE STATUS */
+.ssb{background:var(--white);border:1px solid var(--gray2);border-radius:8px;overflow:hidden;margin-bottom:22px}
+.ssb-head{background:var(--gray6);padding:10px 16px;display:flex;align-items:center;gap:8px}
+.ssb-head h3{font-size:13px;font-weight:700;color:#fff}
+.ssb-row{display:flex;align-items:flex-start;gap:12px;padding:11px 16px;border-bottom:1px solid var(--gray1)}
+.ssb-row:last-child{border:none}
+.dot{width:9px;height:9px;border-radius:50%;flex-shrink:0;margin-top:4px}
+.dot-ok{background:var(--green)}.dot-warn{background:var(--orange)}.dot-fix{background:#D97706}
+.ssb-name{font-size:13px;font-weight:700;color:var(--gray6);min-width:150px}
+.ssb-desc{font-size:12px;color:var(--gray4);flex:1;line-height:1.5}
+.ssb-link{font-size:11px;font-weight:700;color:var(--blue);cursor:pointer;white-space:nowrap}
+
+/* FILTER BAR */
+.filter-bar{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:18px;padding:10px 14px;background:var(--white);border:1px solid var(--gray2);border-radius:8px;align-items:center}
+.fl{font-size:10px;font-weight:700;color:var(--gray3);text-transform:uppercase;letter-spacing:.5px;margin-right:4px}
+.fb{padding:4px 12px;border-radius:6px;border:1.5px solid var(--gray2);background:var(--white);font-size:12px;font-weight:600;cursor:pointer;color:var(--gray4);transition:all .13s;display:flex;align-items:center;gap:3px}
+.fb:hover{border-color:var(--blue);color:var(--blue)}
+.fb.active{background:var(--blue);color:#fff;border-color:var(--blue)}
+.fb.fp0{border-color:var(--red);color:var(--red)}.fb.fp0.active{background:var(--red);color:#fff}
+.fb.fp1{border-color:var(--orange);color:var(--orange)}.fb.fp1.active{background:var(--orange);color:#fff}
+.fb.fdet{border-color:var(--teal);color:var(--teal)}.fb.fdet.active{background:var(--teal);color:#fff}
+.fb.fjud{border-color:var(--purple);color:var(--purple)}.fb.fjud.active{background:var(--purple);color:#fff}
+.fb.fnew{border-color:var(--green);color:var(--green)}.fb.fnew.active{background:var(--green);color:#fff}
+.fb.ffix{border-color:#D97706;color:#D97706}.fb.ffix.active{background:#D97706;color:#fff}
+.fbc{background:rgba(0,0,0,.07);border-radius:10px;padding:0 5px;font-size:10px}
+.fb.active .fbc{background:rgba(255,255,255,.25)}
+
+/* TEST CARD */
+.tc-list{display:flex;flex-direction:column;gap:7px}
+.tc-card{background:var(--white);border:1px solid var(--gray2);border-radius:8px;overflow:hidden;transition:box-shadow .13s}
+.tc-card:hover{box-shadow:0 2px 14px rgba(0,0,0,.07)}
+.tc-card.hidden{display:none}
+.tc-head{display:flex;cursor:pointer}
+.tc-bar{width:4px;flex-shrink:0;align-self:stretch}
+.lb-p0{background:var(--red)}.lb-p1{background:var(--orange)}.lb-p2{background:var(--blue)}.lb-p3{background:var(--green)}
+.tc-inner{display:flex;align-items:flex-start;gap:10px;padding:11px 13px;flex:1}
+.tc-inner:hover{background:var(--gray0)}
+.tc-id-col{min-width:88px;flex-shrink:0}
+.tc-id{font-size:11px;font-weight:700;color:var(--gray3);font-family:var(--mono)}
+.tc-pills{display:flex;gap:3px;margin-top:4px;flex-wrap:wrap}
+.tc-title{font-weight:600;font-size:13px;flex:1;color:var(--gray6);padding-top:1px}
+.tc-fix-label{font-size:9px;background:#FEF9C3;color:#854D0E;border:1px solid #D97706;border-radius:3px;padding:1px 5px;font-weight:800;text-transform:uppercase;margin-left:6px;flex-shrink:0;align-self:flex-start;margin-top:2px}
+.tc-badges{display:flex;gap:4px;align-items:flex-start;flex-shrink:0;flex-wrap:wrap;justify-content:flex-end;min-width:150px}
+.badge{padding:2px 7px;border-radius:4px;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.2px}
+.b-p0{background:var(--red-light);color:var(--red)}.b-p1{background:var(--orange-light);color:var(--orange)}
+.b-p2{background:var(--blue-light);color:var(--blue)}.b-p3{background:var(--green-light);color:var(--green)}
+.b-det{background:var(--teal-light);color:var(--teal)}.b-jud{background:var(--purple-light);color:var(--purple)}
+.b-new{background:var(--green-light);color:var(--green)}.b-fix{background:#FEF9C3;color:#854D0E}
+.tc-chev{padding:11px 12px 11px 4px;color:var(--gray3);font-size:11px;flex-shrink:0;transition:transform .18s;align-self:flex-start;margin-top:2px}
+.tc-chev.open{transform:rotate(180deg)}
+
+/* CARD BODY */
+.tc-body{display:none;border-top:1px solid var(--gray1);background:var(--gray0)}
+.tc-body.open{display:grid;grid-template-columns:1fr 1fr;gap:0}
+.tc-body-L{padding:14px 16px;border-right:1px solid var(--gray1)}
+.tc-body-R{padding:14px 16px}
+.tc-sec{margin-bottom:12px}.tc-sec:last-child{margin-bottom:0}
+.tc-lbl{font-size:10px;font-weight:800;color:var(--gray3);text-transform:uppercase;letter-spacing:.6px;margin-bottom:4px}
+.tc-txt{font-size:13px;color:var(--gray5);line-height:1.6}
+.tc-steps ol{padding-left:16px}
+.tc-steps li{font-size:13px;color:var(--gray5);margin-bottom:3px;line-height:1.5}
+.tc-exp{background:var(--white);border:1px solid var(--gray2);border-radius:6px;padding:9px 12px;font-size:13px;line-height:1.6;color:var(--gray6)}
+.tc-exp code{font-family:var(--mono);font-size:12px;background:var(--gray1);padding:1px 4px;border-radius:3px}
+.tc-note{font-size:11px;color:var(--gray3);font-style:italic;margin-top:5px}
+.tc-warn{background:#FFFBEC;border:1px solid #F0C04A;border-radius:5px;padding:8px 11px;margin-top:8px;font-size:12px;color:#7A5200;display:flex;gap:7px}
+.tc-prd{background:#FEF3C7;border:1px solid #F0C04A;border-radius:5px;padding:6px 10px;margin-bottom:8px;font-size:11px;color:#78350F}
+.tc-video{background:#FEE2E2;border:1px solid #FCA5A5;border-radius:5px;padding:6px 10px;margin-bottom:8px;font-size:11px;color:#7F1D1D}
+.tc-fix-note{background:#FEF9C3;border:1px solid #D97706;border-radius:5px;padding:7px 11px;margin-bottom:8px;font-size:12px;color:#78350F;display:flex;gap:7px}
+
+/* SECTION HDR */
+.sec-hdr{display:flex;align-items:center;gap:10px;margin-bottom:14px;padding-bottom:10px;border-bottom:2px solid var(--gray2)}
+.sec-h2{font-size:17px;font-weight:800;color:var(--gray6)}
+.sec-count{background:var(--gray2);color:var(--gray4);border-radius:10px;padding:2px 10px;font-size:12px;font-weight:700}
+
+/* OVERVIEW GRID */
+.ov-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px;margin-bottom:28px}
+.ov-card{background:var(--white);border:1px solid var(--gray2);border-radius:10px;padding:16px;cursor:pointer;transition:all .14s;text-decoration:none;display:block}
+.ov-card:hover{border-color:var(--blue);box-shadow:0 2px 14px rgba(2,101,220,.1);transform:translateY(-1px)}
+.ov-icon{font-size:22px;margin-bottom:6px}
+.ov-title{font-size:13px;font-weight:700;color:var(--gray6);margin-bottom:3px}
+.ov-desc{font-size:11px;color:var(--gray4);line-height:1.5;margin-bottom:8px}
+.ov-footer{display:flex;gap:5px;flex-wrap:wrap}
+.oc{font-size:10px;font-weight:700;padding:2px 7px;border-radius:4px}
+.oc-tot{background:var(--gray1);color:var(--gray4)}.oc-p0{background:var(--red-light);color:var(--red)}
+.oc-fix{background:#FEF9C3;color:#854D0E}.oc-new{background:var(--green-light);color:var(--green)}
+
+/* TABLE */
+.wiki-table{width:100%;border-collapse:collapse;font-size:13px;background:var(--white);border-radius:8px;overflow:hidden;border:1px solid var(--gray2);margin-bottom:20px}
+.wiki-table th{background:var(--gray1);padding:9px 13px;text-align:left;font-size:10px;font-weight:800;color:var(--gray4);text-transform:uppercase;letter-spacing:.5px;border-bottom:2px solid var(--gray2)}
+.wiki-table td{padding:9px 13px;border-bottom:1px solid var(--gray1);vertical-align:top}
+.wiki-table tr:last-child td{border:none}
+.wiki-table tr:hover td{background:var(--gray0)}
+.tbl-id{font-family:var(--mono);font-size:11px;color:var(--gray4);white-space:nowrap}
+.tbl-fix{color:#D97706;font-weight:700;font-size:11px}
+
+/* MISC */
+.hidden{display:none!important}
+.section-group{margin-bottom:32px}
+</style>
+</head>
+<body>
+
+<!-- TOP BAR -->
+<header class="topbar">
+  <div class="topbar-logo" onclick="showPage('overview')">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><rect width="24" height="24" rx="4" fill="#E23"/><path d="M6 7h12M6 12h8M6 17h10" stroke="#fff" stroke-width="2" stroke-linecap="round"/></svg>
+    QA Wiki
+  </div>
+  <div class="tb-divider"></div>
+  <span class="topbar-title">Citation Generator · Student Spaces · v2 — PRD + Video Verified</span>
+  <span class="tb-chip tb-ok">✓ PRD Ingested</span>
+  <span class="tb-chip tb-ok">✓ Video Analysed (138s, 40 frames)</span>
+  <span class="tb-chip tb-version">v2 · Aug 19, 2026</span>
+  <div class="search-wrap">
+    <svg width="13" height="13" viewBox="0 0 20 20" fill="none"><circle cx="9" cy="9" r="6" stroke="#aaa" stroke-width="2"/><path d="M15 15l3 3" stroke="#aaa" stroke-width="2" stroke-linecap="round"/></svg>
+    <input class="search-box" placeholder="Search test cases…" oninput="globalSearch(this.value)"/>
+  </div>
+</header>
+
+<!-- SIDEBAR -->
+<nav class="sidebar" id="sidebar">
+  <div class="nav-group-label">Overview</div>
+  <div class="nav-section">
+    <div class="nav-items open">
+      <div class="nav-item active" onclick="showPage('overview')">Dashboard <span class="nc">v2</span></div>
+      <div class="nav-item" onclick="showPage('corrections')">⚠ Corrections Log <span class="nc">12</span></div>
+      <div class="nav-item" onclick="showPage('coverage')">Coverage Map</div>
+    </div>
+  </div>
+
+  <div class="nav-group-label">Test Sections</div>
+
+  <div class="nav-section">
+    <div class="nav-section-title open" onclick="toggleNav(this)">📍 Entry Points <span class="nav-arrow">▶</span></div>
+    <div class="nav-items open">
+      <div class="nav-item" onclick="showPage('ep')">All Entry Points <span class="nc">10</span></div>
+    </div>
+  </div>
+
+  <div class="nav-section">
+    <div class="nav-section-title open" onclick="toggleNav(this)">⚡ Auto-Generation <span class="nav-arrow">▶</span></div>
+    <div class="nav-items open">
+      <div class="nav-item" onclick="showPage('autogen')">Generation & AI Fields <span class="nc">9</span></div>
+    </div>
+  </div>
+
+  <div class="nav-section">
+    <div class="nav-section-title open" onclick="toggleNav(this)">🔍 Review Citations <span class="nav-arrow">▶</span></div>
+    <div class="nav-items open">
+      <div class="nav-item" onclick="showPage('review')">Split-View Review Flow <span class="nc">10</span></div>
+    </div>
+  </div>
+
+  <div class="nav-section">
+    <div class="nav-section-title open" onclick="toggleNav(this)">🗂 Citations Panel <span class="nav-arrow">▶</span></div>
+    <div class="nav-items open">
+      <div class="nav-item" onclick="showPage('panel')">Styles, Edit, Actions <span class="nc">12</span></div>
+    </div>
+  </div>
+
+  <div class="nav-section">
+    <div class="nav-section-title open" onclick="toggleNav(this)">🔎 Search & Add <span class="nav-arrow">▶</span></div>
+    <div class="nav-items open">
+      <div class="nav-item" onclick="showPage('search')">Search, URL, Manual <span class="nc">9</span></div>
+    </div>
+  </div>
+
+  <div class="nav-section">
+    <div class="nav-section-title open" onclick="toggleNav(this)">📤 Copy & Export <span class="nav-arrow">▶</span></div>
+    <div class="nav-items open">
+      <div class="nav-item" onclick="showPage('export')">Copy, Download, Note <span class="nc">7</span></div>
+    </div>
+  </div>
+
+  <div class="nav-section">
+    <div class="nav-section-title open" onclick="toggleNav(this)">◻ Empty States <span class="nav-arrow">▶</span></div>
+    <div class="nav-items open">
+      <div class="nav-item" onclick="showPage('empty')">Entry States & Frictionless <span class="nc">6</span></div>
+    </div>
+  </div>
+
+  <div class="nav-section">
+    <div class="nav-section-title open" onclick="toggleNav(this)">⚠ Error Handling <span class="nav-arrow">▶</span></div>
+    <div class="nav-items open">
+      <div class="nav-item" onclick="showPage('errors')">Errors & Edge Cases <span class="nc">8</span></div>
+    </div>
+  </div>
+
+  <div class="nav-section">
+    <div class="nav-section-title open" onclick="toggleNav(this)">♿ Accessibility <span class="nav-arrow">▶</span></div>
+    <div class="nav-items open">
+      <div class="nav-item" onclick="showPage('a11y')">Keyboard & Focus <span class="nc">5</span></div>
+    </div>
+  </div>
+
+  <div class="nav-section">
+    <div class="nav-section-title open" onclick="toggleNav(this)">🔗 Sources Integration <span class="nav-arrow">▶</span></div>
+    <div class="nav-items open">
+      <div class="nav-item" onclick="showPage('sources')">Sources Panel & Popover <span class="nc">6</span></div>
+    </div>
+  </div>
+</nav>
+
+<!-- MAIN -->
+<main class="main">
+
+<!-- ═══════════════ OVERVIEW ═══════════════ -->
+<div class="wiki-page active" id="page-overview">
+  <div class="page-hdr">
+    <div class="breadcrumb">QA Wiki</div>
+    <h1 class="page-h1">Citation Generator — QA Wiki v2</h1>
+    <div class="page-meta">
+      <div class="meta-chip">📅 <strong>Aug 19, 2026</strong></div>
+      <div class="meta-chip">🗂 <strong>82 test cases</strong></div>
+      <div class="meta-chip">⚠ <strong>12 prior cases corrected</strong></div>
+      <div class="meta-chip">✦ <strong>Desktop Web · Launch surface</strong></div>
+    </div>
+  </div>
+
+  <div class="ssb">
+    <div class="ssb-head"><h3>Source Ingestion Status — v2</h3></div>
+    <div class="ssb-row">
+      <div class="dot dot-ok"></div>
+      <div class="ssb-name">Figma Design</div>
+      <div class="ssb-desc">SOT July 28 · 300+ layers · Changelog annotations · Stark a11y bluelines · BTS components. Fully parsed.</div>
+    </div>
+    <div class="ssb-row">
+      <div class="dot dot-ok"></div>
+      <div class="ssb-name">PRD (Word doc)</div>
+      <div class="ssb-desc">Owner: Peter Schwartz · 12 requirement sections · 80+ acceptance criteria · Decision table through Aug 10, 2026. <strong>Fully ingested.</strong> 12 prior test case corrections applied, 28 new cases added.</div>
+    </div>
+    <div class="ssb-row">
+      <div class="dot dot-ok"></div>
+      <div class="ssb-name">Frame.io Video (138s)</div>
+      <div class="ssb-desc">Citation_UI_Walkthrough.mp4 · 1848×1080 · 40 keyframes extracted & analysed. Screens observed: Frictionless page, Loading/generating state, Review split-view, Citations panel with list, Search dropdown, Overflow menu (Edit/Duplicate/Delete), Export download (Citations.pdf), Sources panel with citation popover. <strong>Fully analysed.</strong></div>
+    </div>
+  </div>
+
+  <div class="callout cf">
+    <div>⚠</div>
+    <div class="callout-body">
+      <strong>12 corrections from v1 — review before automation</strong>
+      <ul>
+        <li><strong>Styles</strong>: were "Chicago/AMA/IEEE" → now APA 7th, MLA 9th, Chicago NB, Chicago AD, IEEE, AMA 11th (6 styles + 50–100 CSL library)</li>
+        <li><strong>Delete rule</strong>: was "only if 2+ citations" → PRD Jul 22 decision: user can delete ANY/ALL citations, no minimum</li>
+        <li><strong>Overflow menu</strong>: was "Edit, Copy, Delete" → video confirms <strong>Edit, Duplicate, Delete</strong></li>
+        <li><strong>Review screen</strong>: was "citation list" → video confirms <strong>split-view</strong>: PDF preview left, citation form right</li>
+        <li><strong>"Uncertain" label</strong>: is the IN-REVIEW badge for AI-inferred fields (not post-confirm)</li>
+        <li><strong>Download</strong>: was "skip review step" story → video shows <strong>Citations.pdf downloaded as browser file</strong></li>
+        <li><strong>"Save [N] citations"</strong>: is the confirm CTA in review footer (video: "Save 5 citations")</li>
+        <li><strong>Generation trigger</strong>: only runs if source has <strong>zero existing citations</strong> (Jul 22 decision)</li>
+        <li><strong>Chicago NB</strong>: footnotes not parenthetical (CS-4 requirement)</li>
+        <li><strong>Accepted file types</strong>: PDF, DOCX, PPTX, TXT, XLSX up to 100MB (video fr1)</li>
+        <li><strong>Source hover</strong>: shows citation popover with full formatted citation (video fr40)</li>
+        <li><strong>Anonymous session</strong>: 12h, 3 non-blocking sign-in prompts (PRD EP-2)</li>
+      </ul>
+      <p style="margin-top:6px">See full detail → <a onclick="showPage('corrections')" style="color:var(--blue);cursor:pointer">Corrections Log</a></p>
+    </div>
+  </div>
+
+  <div class="stat-row">
+    <div class="stat-card"><div class="snum sn-tot">82</div><div class="slabel">Total Cases</div></div>
+    <div class="stat-card"><div class="snum sn-p0">22</div><div class="slabel">P0 Critical</div></div>
+    <div class="stat-card"><div class="snum sn-p1">32</div><div class="slabel">P1 High</div></div>
+    <div class="stat-card"><div class="snum sn-p2">20</div><div class="slabel">P2 Medium</div></div>
+    <div class="stat-card"><div class="snum sn-p2" style="color:var(--green)">8</div><div class="slabel">P3 Low</div></div>
+    <div class="stat-card"><div class="snum sn-det">52</div><div class="slabel">Deterministic</div></div>
+    <div class="stat-card"><div class="snum sn-jud">30</div><div class="slabel">Judgment</div></div>
+    <div class="stat-card"><div class="snum sn-new">28</div><div class="slabel">New (PRD+Video)</div></div>
+    <div class="stat-card"><div class="snum sn-fix">12</div><div class="slabel">Corrected</div></div>
+  </div>
+
+  <div class="ov-grid">
+    <div class="ov-card" onclick="showPage('ep')"><div class="ov-icon">📍</div><div class="ov-title">Entry Points</div><div class="ov-desc">Frictionless SEO, Sources panel, + Create, Chat, Study Tools grid, anonymous flow</div><div class="ov-footer"><span class="oc oc-tot">10 cases</span><span class="oc oc-p0">4 P0</span><span class="oc oc-new">3 NEW</span></div></div>
+    <div class="ov-card" onclick="showPage('autogen')"><div class="ov-icon">⚡</div><div class="ov-title">Auto-Generation</div><div class="ov-desc">AI extraction, Uncertain field badges, non-academic filtering, async streaming, source type detection</div><div class="ov-footer"><span class="oc oc-tot">9 cases</span><span class="oc oc-p0">5 P0</span><span class="oc oc-new">4 NEW</span></div></div>
+    <div class="ov-card" onclick="showPage('review')"><div class="ov-icon">🔍</div><div class="ov-title">Review Citations</div><div class="ov-desc">Split-view PDF + form, inline editing, Uncertain badge, Save N citations CTA, footer count</div><div class="ov-footer"><span class="oc oc-tot">10 cases</span><span class="oc oc-p0">5 P0</span><span class="oc oc-fix">4 CORRECTED</span></div></div>
+    <div class="ov-card" onclick="showPage('panel')"><div class="ov-icon">🗂</div><div class="ov-title">Citations Panel</div><div class="ov-desc">6 styles, Edit/Duplicate/Delete overflow, include/exclude, sort, live preview, Chicago NB footnotes</div><div class="ov-footer"><span class="oc oc-tot">12 cases</span><span class="oc oc-p0">5 P0</span><span class="oc oc-fix">5 CORRECTED</span></div></div>
+    <div class="ov-card" onclick="showPage('search')"><div class="ov-icon">🔎</div><div class="ov-title">Search & Add</div><div class="ov-desc">DOI/ISBN/arXiv routing, Add manually option, source card PDF generation, search dropdown</div><div class="ov-footer"><span class="oc oc-tot">9 cases</span><span class="oc oc-p0">4 P0</span><span class="oc oc-new">3 NEW</span></div></div>
+    <div class="ov-card" onclick="showPage('export')"><div class="ov-icon">📤</div><div class="ov-title">Copy & Export</div><div class="ov-desc">Copy all/selected label switch, Citations.pdf download, Add to Note, in-text locator, IEEE [N]</div><div class="ov-footer"><span class="oc oc-tot">7 cases</span><span class="oc oc-p0">4 P0</span><span class="oc oc-new">5 NEW</span></div></div>
+    <div class="ov-card" onclick="showPage('empty')"><div class="ov-icon">◻</div><div class="ov-title">Empty States</div><div class="ov-desc">Frictionless 12h session, 3 sign-in prompts, session merge on login, hero panel, context-aware CTAs</div><div class="ov-footer"><span class="oc oc-tot">6 cases</span><span class="oc oc-p0">3 P0</span><span class="oc oc-new">3 NEW</span></div></div>
+    <div class="ov-card" onclick="showPage('errors')"><div class="ov-icon">⚠</div><div class="ov-title">Error Handling</div><div class="ov-desc">Failed file list, 100MB limit, bad URL, network error, validation, timeout, graceful failure targets</div><div class="ov-footer"><span class="oc oc-tot">8 cases</span><span class="oc oc-p0">5 P0</span><span class="oc oc-new">6 NEW</span></div></div>
+    <div class="ov-card" onclick="showPage('a11y')"><div class="ov-icon">♿</div><div class="ov-title">Accessibility</div><div class="ov-desc">Keyboard nav, arrow keys, Escape to close modal, focus order, Stark blueline annotations</div><div class="ov-footer"><span class="oc oc-tot">5 cases</span><span class="oc oc-p0">2 P0</span></div></div>
+    <div class="ov-card" onclick="showPage('sources')"><div class="ov-icon">🔗</div><div class="ov-title">Sources Integration</div><div class="ov-desc">Cite-this-source trigger, citation popover on hover, citation count link, split-view editing</div><div class="ov-footer"><span class="oc oc-tot">6 cases</span><span class="oc oc-p0">3 P0</span><span class="oc oc-new">3 NEW</span></div></div>
+  </div>
+</div>
+
+<!-- ═══════════════ CORRECTIONS LOG ═══════════════ -->
+<div class="wiki-page" id="page-corrections">
+  <div class="page-hdr">
+    <div class="breadcrumb"><a onclick="showPage('overview')">Wiki</a> › Corrections Log</div>
+    <h1 class="page-h1">⚠ v1 → v2 Corrections</h1>
+    <div class="page-meta"><div class="meta-chip">12 corrections from real PRD + video</div></div>
+  </div>
+  <div class="callout cs"><div>✓</div><div class="callout-body"><strong>How to read this table</strong><p>Each row is a test case or assumption from v1 (Figma-only) that was wrong or incomplete. The "Correct Behaviour" column reflects what the PRD acceptance criteria and/or video walkthrough actually shows. All affected test cases have been updated in their respective sections and marked CORRECTED.</p></div></div>
+  <table class="wiki-table">
+    <thead><tr><th>Area</th><th>v1 (Figma-inferred — wrong)</th><th>v2 Correct Behaviour</th><th>Source</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Citation styles</strong></td><td>Chicago, AMA, IEEE only</td><td>6 styles: APA 7th, MLA 9th, Chicago NB, Chicago AD, IEEE, AMA 11th + 50–100 CSL via search</td><td><span class="sp sp-prd">PRD CS-1</span></td></tr>
+      <tr><td><strong>Delete rule</strong></td><td>Delete only shown if 2+ citations exist</td><td>User can delete ANY or ALL citations. No minimum. Primary/secondary citation concept removed (Jul 22 decision)</td><td><span class="sp sp-prd">PRD Decision Table Jul 22</span></td></tr>
+      <tr><td><strong>Overflow menu</strong></td><td>Edit, Copy, Delete</td><td><strong>Edit, Duplicate, Delete</strong> — Copy is a separate inline icon, not in overflow</td><td><span class="sp sp-video">Video fr10/15/30</span></td></tr>
+      <tr><td><strong>Review screen layout</strong></td><td>A list of citation cards for batch review</td><td><strong>Split-view</strong>: PDF document preview on left, citation form fields on right. Not a list — one citation at a time with thumbnail strip</td><td><span class="sp sp-video">Video fr5/7/12</span> <span class="sp sp-prd">PRD SV-1</span></td></tr>
+      <tr><td><strong>"Uncertain" label timing</strong></td><td>Post-confirm badge on citation in panel</td><td>"Uncertain" = field-level badge during <em>review</em> for AI-inferred fields. After confirming ("Save N citations"), indicators are retired per CG-9</td><td><span class="sp sp-video">Video fr5/12</span> <span class="sp sp-prd">PRD CG-9</span></td></tr>
+      <tr><td><strong>Download behaviour</strong></td><td>"Skip review step when downloading"</td><td>Download exports <strong>Citations.pdf</strong> as a browser file download. Video shows Chrome download bar: "Citations.pdf 100 KB – Done"</td><td><span class="sp sp-video">Video fr35</span> <span class="sp sp-prd">PRD EX-5</span></td></tr>
+      <tr><td><strong>Review confirm CTA</strong></td><td>"Add [N] Citations" button</td><td>Video CTA reads <strong>"Save 5 citations"</strong>. PRD says "Add [N] Citation(s)" — confirm exact label with eng before automating string assertion</td><td><span class="sp sp-video">Video fr5</span> <span class="sp sp-prd">PRD CG-6</span></td></tr>
+      <tr><td><strong>Generation trigger</strong></td><td>Always generates on navigation to Citations panel</td><td>Generation runs ONLY if source has <strong>zero existing citations</strong>. Sources with any citation go directly to Review Citations screen (Jul 22 decision)</td><td><span class="sp sp-prd">PRD Decision Jul 22</span></td></tr>
+      <tr><td><strong>Chicago NB format</strong></td><td>Parenthetical in-text citation</td><td>Chicago NB uses <strong>Footnote + Ibid.</strong> forms — not parenthetical. In-text modal shows footnote text instead</td><td><span class="sp sp-prd">PRD CS-4, IT-1</span></td></tr>
+      <tr><td><strong>Accepted file types</strong></td><td>PDF only assumed</td><td>Accepts PDF, DOCX, PPTX, TXT, XLSX. Max <strong>100 MB per file</strong>. Multiple files in one batch allowed</td><td><span class="sp sp-video">Video fr1 fine print</span> <span class="sp sp-prd">PRD CI-1</span></td></tr>
+      <tr><td><strong>Source hover / SP-3</strong></td><td>Opens lightweight citation modal</td><td>Video shows <strong>citation popover</strong> on hover containing full formatted citation text + style label + copy button. Uses annotation popover behaviour</td><td><span class="sp sp-video">Video fr40</span> <span class="sp sp-prd">PRD SP-3</span></td></tr>
+      <tr><td><strong>Anonymous session</strong></td><td>Sign-in gate before accessing tool</td><td>Full tool available without sign-in. Session persists <strong>12 hours</strong>. Sign-in prompt appears at 3 non-blocking moments (after first source, on export, at 12h expiry)</td><td><span class="sp sp-prd">PRD EP-1/EP-2</span></td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- ═══════════════ COVERAGE MAP ═══════════════ -->
+<div class="wiki-page" id="page-coverage">
+  <div class="page-hdr">
+    <div class="breadcrumb"><a onclick="showPage('overview')">Wiki</a> › Coverage Map</div>
+    <h1 class="page-h1">Coverage Map</h1>
+  </div>
+  <table class="wiki-table">
+    <thead><tr><th>Section</th><th>Cases</th><th>P0</th><th>Det</th><th>Jud</th><th>New</th><th>Fixed</th><th>Sources</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Entry Points</strong></td><td>10</td><td>4</td><td>8</td><td>2</td><td>3</td><td>1</td><td><span class="sp sp-all">All</span></td></tr>
+      <tr><td><strong>Auto-Generation</strong></td><td>9</td><td>5</td><td>6</td><td>3</td><td>4</td><td>2</td><td><span class="sp sp-prd">PRD</span> <span class="sp sp-video">Video</span></td></tr>
+      <tr><td><strong>Review Citations</strong></td><td>10</td><td>5</td><td>8</td><td>2</td><td>4</td><td>4</td><td><span class="sp sp-all">All</span></td></tr>
+      <tr><td><strong>Citations Panel</strong></td><td>12</td><td>5</td><td>8</td><td>4</td><td>5</td><td>5</td><td><span class="sp sp-all">All</span></td></tr>
+      <tr><td><strong>Search & Add</strong></td><td>9</td><td>4</td><td>7</td><td>2</td><td>3</td><td>0</td><td><span class="sp sp-prd">PRD</span> <span class="sp sp-video">Video</span></td></tr>
+      <tr><td><strong>Copy & Export</strong></td><td>7</td><td>4</td><td>5</td><td>2</td><td>5</td><td>1</td><td><span class="sp sp-prd">PRD</span> <span class="sp sp-video">Video</span></td></tr>
+      <tr><td><strong>Empty States</strong></td><td>6</td><td>3</td><td>5</td><td>1</td><td>3</td><td>0</td><td><span class="sp sp-prd">PRD</span></td></tr>
+      <tr><td><strong>Error Handling</strong></td><td>8</td><td>5</td><td>6</td><td>2</td><td>6</td><td>0</td><td><span class="sp sp-prd">PRD</span> <span class="sp sp-video">Video</span></td></tr>
+      <tr><td><strong>Accessibility</strong></td><td>5</td><td>2</td><td>3</td><td>2</td><td>0</td><td>0</td><td><span class="sp sp-figma">Figma</span></td></tr>
+      <tr><td><strong>Sources Integration</strong></td><td>6</td><td>3</td><td>3</td><td>3</td><td>3</td><td>1</td><td><span class="sp sp-all">All</span></td></tr>
+      <tr style="font-weight:800;background:var(--gray0)"><td>Total</td><td>82</td><td>40</td><td>59</td><td>23</td><td>36</td><td>14</td><td></td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- ═══════════════ ENTRY POINTS ═══════════════ -->
+<div class="wiki-page" id="page-ep">
+  <div class="page-hdr">
+    <div class="breadcrumb"><a onclick="showPage('overview')">Wiki</a> › Entry Points</div>
+    <h1 class="page-h1">📍 Entry Points</h1>
+    <div class="page-meta"><div class="meta-chip">10 cases</div><span class="sp sp-all">All sources</span></div>
+  </div>
+  <div class="filter-bar">
+    <span class="fl">Filter:</span>
+    <button class="fb active" onclick="fp('ep','all',this)">All <span class="fbc">10</span></button>
+    <button class="fb fp0" onclick="fp('ep','p0',this)">P0 <span class="fbc">4</span></button>
+    <button class="fb fp1" onclick="fp('ep','p1',this)">P1 <span class="fbc">4</span></button>
+    <button class="fb fp2" onclick="fp('ep','p2',this)">P2 <span class="fbc">2</span></button>
+    <button class="fb fnew" onclick="fp('ep','new',this)">NEW <span class="fbc">3</span></button>
+    <button class="fb ffix" onclick="fp('ep','fix',this)">CORRECTED <span class="fbc">1</span></button>
+  </div>
+  <div class="tc-list" id="tclist-ep">
+
+    <div class="tc-card" data-p="p0" data-t="det" data-new="false" data-fix="false" data-page="ep" data-kw="anonymous frictionless SEO no signup citation maker desktop web">
+      <div class="tc-head"><div class="tc-bar lb-p0"></div><div class="tc-inner" onclick="tgl(this)">
+        <div class="tc-id-col"><div class="tc-id">TC-EP-01</div><div class="tc-pills"><span class="sp sp-prd">PRD EP-1</span></div></div>
+        <div class="tc-title">Anonymous user lands on frictionless Citation Maker page from SEO — full tool available without sign-in</div>
+        <div class="tc-badges"><span class="badge b-p0">P0</span><span class="badge b-det">Deterministic</span></div>
+      </div><div class="tc-chev">▼</div></div>
+      <div class="tc-body"><div class="tc-body-L">
+        <div class="tc-prd">PRD EP-1 AC: Anonymous users routed directly into Citations tab within a new anonymous Student Space. Full workflow available without authentication.</div>
+        <div class="tc-sec"><div class="tc-lbl">Steps</div><div class="tc-steps"><ol><li>Navigate to frictionless landing URL (e.g. acrobat/flashcard-maker equivalent for citations) without being signed in.</li><li>Observe page rendered: "Citation maker — Upload your sources to create citations. Start for free, no sign-up or credit card required."</li><li>Attempt to upload a file and generate a citation.</li></ol></div></div>
+      </div><div class="tc-body-R">
+        <div class="tc-sec"><div class="tc-lbl">Expected Result</div><div class="tc-exp">Page loads with hero heading "Citation maker", drag-and-drop zone, source type selector ("Book"), search bar (URL, title, ISBN, keywords), and "Select files" CTA. No sign-in gate. Citation generation flow proceeds without authentication. <strong>Desktop Web only at launch.</strong></div></div>
+        <div class="tc-video">Video fr1 confirms exact UI: "Citation maker" H1, "Select files" button, drag-drop zone, "PDF, DOCX, PPTX, TXT, and more, up to 100MB each file".</div>
+      </div></div>
+    </div>
+
+    <div class="tc-card" data-p="p0" data-t="det" data-new="true" data-fix="false" data-page="ep" data-kw="anonymous session 12 hours persist sign-in non-blocking 3 moments">
+      <div class="tc-head"><div class="tc-bar lb-p0"></div><div class="tc-inner" onclick="tgl(this)">
+        <div class="tc-id-col"><div class="tc-id">TC-EP-02</div><div class="tc-pills"><span class="sp sp-prd">PRD EP-2</span></div></div>
+        <div class="tc-title">Anonymous session persists 12 hours; non-blocking sign-in prompts appear at 3 defined moments only</div>
+        <div class="tc-badges"><span class="badge b-p0">P0</span><span class="badge b-det">Deterministic</span><span class="badge b-new">NEW</span></div>
+      </div><div class="tc-chev">▼</div></div>
+      <div class="tc-body"><div class="tc-body-L">
+        <div class="tc-prd">PRD EP-2: Non-blocking sign-in prompt at: (1) after first source added, (2) on export, (3) at 12h session expiration. Student can dismiss and continue without signing in.</div>
+        <div class="tc-sec"><div class="tc-lbl">Steps</div><div class="tc-steps"><ol><li>As anonymous user, add a source → confirm sign-in prompt appears but is dismissable.</li><li>Dismiss and trigger an export → confirm second prompt appears, dismissable.</li><li>Confirm no sign-in prompt appears at any other interaction point.</li><li>Confirm session data (citations, sources) survive a page refresh within 12h.</li></ol></div></div>
+      </div><div class="tc-body-R">
+        <div class="tc-sec"><div class="tc-lbl">Expected Result</div><div class="tc-exp">Sign-in prompt appears ONLY at the 3 defined moments, each dismissable. Between prompts, full tool remains usable. Session data intact until 12h expiry. No sign-in gate blocks any workflow step.</div></div>
+      </div></div>
+    </div>
+
+    <div class="tc-card" data-p="p0" data-t="det" data-new="true" data-fix="false" data-page="ep" data-kw="anonymous sign in session merge citations preserved account created">
+      <div class="tc-head"><div class="tc-bar lb-p0"></div><div class="tc-inner" onclick="tgl(this)">
+        <div class="tc-id-col"><div class="tc-id">TC-EP-03</div><div class="tc-pills"><span class="sp sp-prd">PRD EP-3</span></div></div>
+        <div class="tc-title">On sign-in during anonymous session, all citations and sources are preserved and associated with the account</div>
+        <div class="tc-badges"><span class="badge b-p0">P0</span><span class="badge b-det">Deterministic</span><span class="badge b-new">NEW</span></div>
+      </div><div class="tc-chev">▼</div></div>
+      <div class="tc-body"><div class="tc-body-L">
+        <div class="tc-prd">PRD EP-3 AC: On sign-in, all citations and uploaded sources from the anonymous session are associated with the student's account. A Student Space is created if none exists. Lightweight confirmation shown.</div>
+        <div class="tc-sec"><div class="tc-lbl">Steps</div><div class="tc-steps"><ol><li>As anonymous user, generate 3 citations from uploaded PDFs.</li><li>Sign in via the non-blocking prompt.</li><li>Verify citations and sources are present in the new/existing Space.</li></ol></div></div>
+      </div><div class="tc-body-R">
+        <div class="tc-sec"><div class="tc-lbl">Expected Result</div><div class="tc-exp">All 3 citations survive session merge. Sources appear in the Space's Sources panel. A lightweight confirmation message is shown post-login. Zero data loss.</div></div>
+      </div></div>
+    </div>
+
+    <div class="tc-card" data-p="p0" data-t="det" data-new="false" data-fix="false" data-page="ep" data-kw="create plus menu citation open citations tab entry point">
+      <div class="tc-head"><div class="tc-bar lb-p0"></div><div class="tc-inner" onclick="tgl(this)">
+        <div class="tc-id-col"><div class="tc-id">TC-EP-04</div><div class="tc-pills"><span class="sp sp-prd">PRD EP-4</span></div></div>
+        <div class="tc-title">"Citation" in + Create dropdown opens Citations tab directly</div>
+        <div class="tc-badges"><span class="badge b-p0">P0</span><span class="badge b-det">Deterministic</span></div>
+      </div><div class="tc-chev">▼</div></div>
+      <div class="tc-body"><div class="tc-body-L">
+        <div class="tc-sec"><div class="tc-lbl">Steps</div><div class="tc-steps"><ol><li>From any screen in Student Space, open the + Create dropdown.</li><li>Click "Citation".</li></ol></div></div>
+      </div><div class="tc-body-R">
+        <div class="tc-sec"><div class="tc-lbl">Expected Result</div><div class="tc-exp">"Citation" option is present in the + Create dropdown alongside other tools. Clicking it opens the Citations tab/panel. If sources exist and are un-cited, generation triggers automatically.</div></div>
+      </div></div>
+    </div>
+
+    <div class="tc-card" data-p="p1" data-t="det" data-new="false" data-fix="false" data-page="ep" data-kw="chat intent trigger generate citations student asks">
+      <div class="tc-head"><div class="tc-bar lb-p1"></div><div class="tc-inner" onclick="tgl(this)">
+        <div class="tc-id-col"><div class="tc-id">TC-EP-05</div><div class="tc-pills"><span class="sp sp-prd">PRD EP-5</span></div></div>
+        <div class="tc-title">Chat acts as intent trigger: asking to "cite my sources" opens Citations panel workflow</div>
+        <div class="tc-badges"><span class="badge b-p1">P1</span><span class="badge b-det">Deterministic</span></div>
+      </div><div class="tc-chev">▼</div></div>
+      <div class="tc-body"><div class="tc-body-L">
+        <div class="tc-prd">PRD EP-5 AC: Chat does NOT display the reference list or manage export. It triggers the Citation panel workflow only.</div>
+        <div class="tc-sec"><div class="tc-lbl">Steps</div><div class="tc-steps"><ol><li>In chat, type "generate citations for my sources".</li><li>Observe response and UI change.</li></ol></div></div>
+      </div><div class="tc-body-R">
+        <div class="tc-sec"><div class="tc-lbl">Expected Result</div><div class="tc-exp">Chat displays a banner/element the user clicks to open the Citations panel. Execution (review queue, editing, export) happens IN the Citations panel — not in chat. Chat does not show a reference list.</div></div>
+      </div></div>
+    </div>
+
+    <div class="tc-card" data-p="p1" data-t="det" data-new="false" data-fix="false" data-page="ep" data-kw="cite this source sources panel every row icon button">
+      <div class="tc-head"><div class="tc-bar lb-p1"></div><div class="tc-inner" onclick="tgl(this)">
+        <div class="tc-id-col"><div class="tc-id">TC-EP-06</div><div class="tc-pills"><span class="sp sp-prd">PRD SP-1</span></div></div>
+        <div class="tc-title">"Cite this source" icon button visible on every source row in Sources panel</div>
+        <div class="tc-badges"><span class="badge b-p1">P1</span><span class="badge b-det">Deterministic</span></div>
+      </div><div class="tc-chev">▼</div></div>
+      <div class="tc-body"><div class="tc-body-L">
+        <div class="tc-sec"><div class="tc-lbl">Steps</div><div class="tc-steps"><ol><li>Open Sources panel with 3 sources (mix of cited and uncited).</li><li>Hover each source row.</li></ol></div></div>
+      </div><div class="tc-body-R">
+        <div class="tc-sec"><div class="tc-lbl">Expected Result</div><div class="tc-exp">"Cite this source" icon button appears on every source row. Visible on hover. Present for both cited and uncited sources (behaviour differs per state — see TC-SR-01/02).</div></div>
+      </div></div>
+    </div>
+
+    <div class="tc-card" data-p="p1" data-t="det" data-new="false" data-fix="true" data-page="ep" data-kw="study tools grid citation generator tile home overview overview page">
+      <div class="tc-head"><div class="tc-bar lb-p1"></div><div class="tc-inner" onclick="tgl(this)">
+        <div class="tc-id-col"><div class="tc-id">TC-EP-07</div><div class="tc-pills"><span class="sp sp-figma">Figma</span></div></div>
+        <div class="tc-title">Citation Generator tile in Study Tools grid opens Citations panel</div>
+        <div class="tc-badges"><span class="badge b-p1">P1</span><span class="badge b-det">Deterministic</span><span class="badge b-fix">CORRECTED</span></div>
+      </div><div class="tc-chev">▼</div></div>
+      <div class="tc-body"><div class="tc-body-L">
+        <div class="tc-fix-note"><span>⚠</span><span>v1 had this as P0. PRD clarifies Citation Generator is accessible from Study Tools grid but the <strong>primary</strong> P0 entry points are frictionless page and + Create. Downgraded to P1.</span></div>
+        <div class="tc-sec"><div class="tc-lbl">Steps</div><div class="tc-steps"><ol><li>Open empty chat state or Student Space overview.</li><li>Locate Citation Generator in the study tools block.</li><li>Click tile.</li></ol></div></div>
+      </div><div class="tc-body-R">
+        <div class="tc-sec"><div class="tc-lbl">Expected Result</div><div class="tc-exp">Citation Generator tile present with correct icon (S2_Icon_CursorClick_20_N) and label. Clicking opens Citations panel. If sources exist and uncited, auto-generation triggers.</div></div>
+      </div></div>
+    </div>
+
+    <div class="tc-card" data-p="p1" data-t="det" data-new="false" data-fix="false" data-page="ep" data-kw="citations tab sources page tab accessible button">
+      <div class="tc-head"><div class="tc-bar lb-p1"></div><div class="tc-inner" onclick="tgl(this)">
+        <div class="tc-id-col"><div class="tc-id">TC-EP-08</div><div class="tc-pills"><span class="sp sp-prd">PRD How It Works</span></div></div>
+        <div class="tc-title">Citations tab accessible from Sources page via tab/button</div>
+        <div class="tc-badges"><span class="badge b-p1">P1</span><span class="badge b-det">Deterministic</span></div>
+      </div><div class="tc-chev">▼</div></div>
+      <div class="tc-body"><div class="tc-body-L">
+        <div class="tc-prd">PRD: "The Citations panel will live as a tab within the Sources page, accessible via button."</div>
+        <div class="tc-sec"><div class="tc-lbl">Steps</div><div class="tc-steps"><ol><li>Navigate to Sources page.</li><li>Locate Citations tab/button.</li><li>Click it.</li></ol></div></div>
+      </div><div class="tc-body-R">
+        <div class="tc-sec"><div class="tc-lbl">Expected Result</div><div class="tc-exp">Citations panel opens within or adjacent to Sources page. Video fr20 confirms "Sources" and "Citations" tabs visible side by side at panel top.</div></div>
+        <div class="tc-video">Video fr20: panel header shows "Sources ⚓ Citations ×" tab strip.</div>
+      </div></div>
+    </div>
+
+    <div class="tc-card" data-p="p2" data-t="det" data-new="true" data-fix="false" data-page="ep" data-kw="desktop web only launch surface mobile not supported">
+      <div class="tc-head"><div class="tc-bar lb-p2"></div><div class="tc-inner" onclick="tgl(this)">
+        <div class="tc-id-col"><div class="tc-id">TC-EP-09</div><div class="tc-pills"><span class="sp sp-prd">PRD Surfaces</span></div></div>
+        <div class="tc-title">Citation Generator is Desktop Web only at launch — not available on mobile surfaces</div>
+        <div class="tc-badges"><span class="badge b-p2">P2</span><span class="badge b-det">Deterministic</span><span class="badge b-new">NEW</span></div>
+      </div><div class="tc-chev">▼</div></div>
+      <div class="tc-body"><div class="tc-body-L">
+        <div class="tc-prd">PRD Surfaces: "Citation Generator will be supported exclusively on Desktop Web at launch."</div>
+        <div class="tc-sec"><div class="tc-lbl">Steps</div><div class="tc-steps"><ol><li>Access Student Space on mobile browser or app.</li><li>Attempt to open Citations panel.</li></ol></div></div>
+      </div><div class="tc-body-R">
+        <div class="tc-sec"><div class="tc-lbl">Expected Result</div><div class="tc-exp">On mobile, Citations panel is either hidden, shows an "available on desktop" message, or is not surfaced in the mobile navigation. No broken/partial mobile UI is shown.</div></div>
+        <div class="tc-note">Judgment on exact treatment — confirm with PM what the mobile fallback looks like.</div>
+      </div></div>
+    </div>
+
+    <div class="tc-card" data-p="p2" data-t="jud" data-new="true" data-fix="false" data-page="ep" data-kw="welcome message overview page citation entry CTA">
+      <div class="tc-head"><div class="tc-bar lb-p2"></div><div class="tc-inner" onclick="tgl(this)">
+        <div class="tc-id-col"><div class="tc-id">TC-EP-10</div><div class="tc-pills"><span class="sp sp-figma">Figma</span></div></div>
+        <div class="tc-title">Welcome Message and Overview Page show Citation Generator CTA contextually</div>
+        <div class="tc-badges"><span class="badge b-p2">P2</span><span class="badge b-jud">Judgment</span><span class="badge b-new">NEW</span></div>
+      </div><div class="tc-chev">▼</div></div>
+      <div class="tc-body"><div class="tc-body-L">
+        <div class="tc-sec"><div class="tc-lbl">Steps</div><div class="tc-steps"><ol><li>Open a new Student Space (no sources, no citations).</li><li>Observe Welcome message and Overview page.</li></ol></div></div>
+      </div><div class="tc-body-R">
+        <div class="tc-sec"><div class="tc-lbl">Expected Result</div><div class="tc-exp">Citation Generator appears in study tools section of Welcome/Overview. Clicking it opens Citations panel. Placement and label are consistent with Figma "BTS26 - Study Tool - Citation Generator" component.</div></div>
+        <div class="tc-note">Judgment — visual placement and contextual appropriateness evaluated against Figma spec.</div>
+      </div></div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ═══════════════ AUTO-GENERATION ═══════════════ -->
+<div class="wiki-page" id="page-autogen">
+  <div class="page-hdr">
+    <div class="breadcrumb"><a onclick="showPage('overview')">Wiki</a> › Auto-Generation</div>
+    <h1 class="page-h1">⚡ Auto-Generation & AI Fields</h1>
+    <div class="page-meta"><div class="meta-chip">9 cases</div><span class="sp sp-prd">PRD</span><span class="sp sp-video">Video</span></div>
+  </div>
+  <div class="filter-bar"><span class="fl">Filter:</span>
+    <button class="fb active" onclick="fp('autogen','all',this)">All <span class="fbc">9</span></button>
+    <button class="fb fp0" onclick="fp('autogen','p0',this)">P0 <span class="fbc">5</span></button>
+    <button class="fb fp1" onclick="fp('autogen','p1',this)">P1 <span class="fbc">3</span></button>
+    <button class="fb fp2" onclick="fp('autogen','p2',this)">P2 <span class="fbc">1</span></button>
+    <button class="fb fnew" onclick="fp('autogen','new',this)">NEW <span class="fbc">4</span></button>
+    <button class="fb ffix" onclick="fp('autogen','fix',this)">CORRECTED <span class="fbc">2</span></button>
+  </div>
+  <div class="tc-list" id="tclist-autogen">
+
+    <div class="tc-card" data-p="p0" data-t="det" data-new="false" data-fix="true" data-page="autogen" data-kw="auto generate citation navigate citations panel existing sources un-cited trigger">
+      <div class="tc-head"><div class="tc-bar lb-p0"></div><div class="tc-inner" onclick="tgl(this)">
+        <div class="tc-id-col"><div class="tc-id">TC-AG-01</div><div class="tc-pills"><span class="sp sp-prd">PRD UE-2</span></div></div>
+        <div class="tc-title">Navigating to Citations panel auto-triggers generation for all un-cited sources</div>
+        <div class="tc-badges"><span class="badge b-p0">P0</span><span class="badge b-det">Deterministic</span><span class="badge b-fix">CORRECTED</span></div>
+      </div><div class="tc-chev">▼</div></div>
+      <div class="tc-body"><div class="tc-body-L">
+        <div class="tc-fix-note"><span>⚠</span><span>v1 said "generation triggers on any navigation". PRD Jul 22 decision: generation ONLY runs on sources with ZERO existing citations. Sources that already have any citation skip generation entirely.</span></div>
+        <div class="tc-sec"><div class="tc-lbl">Steps</div><div class="tc-steps"><ol><li>Project has 3 sources: A (no citations), B (no citations), C (1 existing citation).</li><li>Navigate to Citations panel.</li></ol></div></div>
+      </div><div class="tc-body-R">
+        <div class="tc-sec"><div class="tc-lbl">Expected Result</div><div class="tc-exp">Generation triggers for sources A and B only. Source C is skipped — its existing citation is not regenerated. Loading state shows "X citations processing". Results stream in asynchronously as each source resolves.</div></div>
+      </div></div>
+    </div>
+
+    <div class="tc-card" data-p="p0" data-t="det" data-new="true" data-fix="false" data-page="autogen" data-kw="non-academic source filtered out lecture notes student notes excluded auto generation">
+      <div class="tc-head"><div class="tc-bar lb-p0"></div><div class="tc-inner" onclick="tgl(this)">
+        <div class="tc-id-col"><div class="tc-id">TC-AG-02</div><div class="tc-pills"><span class="sp sp-prd">PRD UE-2 P1</span></div></div>
+        <div class="tc-title">Non-academic sources (lecture notes, student docs) are excluded from auto-generation</div>
+        <div class="tc-badges"><span class="badge b-p0">P0</span><span class="badge b-det">Deterministic</span><span class="badge b-new">NEW</span></div>
+      </div><div class="tc-chev">▼</div></div>
+      <div class="tc-body"><div class="tc-body-L">
+        <div class="tc-prd">PRD UE-2 P1: LLM runs extra pass — determines if document is an academic source or personal document (lecture slides, student notes). If NOT academic → citation generation stops; source does not appear in citations list.</div>
+        <div class="tc-sec"><div class="tc-lbl">Steps</div><div class="tc-steps"><ol><li>Upload 2 sources: (A) a published journal article PDF, (B) a student's lecture notes doc.</li><li>Navigate to Citations panel.</li></ol></div></div>
+      </div><div class="tc-body-R">
+        <div class="tc-sec"><div class="tc-lbl">Expected Result</div><div class="tc-exp">Source A: citation generated and enters review queue. Source B: does NOT appear in the citations review queue — it is silently excluded. No error message for B (it's intentional, not a failure). Source B still remains in the Sources panel.</div></div>
+        <div class="tc-note">Judgment element: "lecture notes" classification accuracy. LLM may misclassify edge cases — log misclassifications for model team.</div>
+      </div></div>
+    </div>
+
+    <div class="tc-card" data-p="p0" data-t="det" data-new="true" data-fix="false" data-page="autogen" data-kw="source type auto detected AI journal article book webpage news report pre-selected">
+      <div class="tc-head"><div class="tc-bar lb-p0"></div><div class="tc-inner" onclick="tgl(this)">
+        <div class="tc-id-col"><div class="tc-id">TC-AG-03</div><div class="tc-pills"><span class="sp sp-prd">PRD CG-2</span></div></div>
+        <div class="tc-title">AI pre-selects source type (Journal Article / Book / Webpage / News Article / Report) in review card</div>
+        <div class="tc-badges"><span class="badge b-p0">P0</span><span class="badge b-det">Deterministic</span><span class="badge b-new">NEW</span></div>
+      </div><div class="tc-chev">▼</div></div>
+      <div class="tc-body"><div class="tc-body-L">
+        <div class="tc-prd">PRD CG-2 AC: AI determines most likely source type. Pre-selected in review card and full edit form. Student may override at any time; switching is non-destructive for shared fields.</div>
+        <div class="tc-sec"><div class="tc-lbl">Steps</div><div class="tc-steps"><ol><li>Upload a journal article PDF.</li><li>Open review card after generation.</li><li>Check the "Type" dropdown value.</li></ol></div></div>
+      </div><div class="tc-body-R">
+        <div class="tc-sec"><div class="tc-lbl">Expected Result</div><div class="tc-exp">Video fr12 confirms "Type" dropdown pre-populated as "Book" for a specific source. For a journal article, type should be "Journal Article". Changing type preserves shared fields (Title, Author, Year). Student is not blocked from overriding.</div></div>
+        <div class="tc-video">Video fr12: Type dropdown visible with "Book" pre-selected. "More fields" button also visible.</div>
+      </div></div>
+    </div>
+
+    <div class="tc-card" data-p="p0" data-t="det" data-new="false" data-fix="true" data-page="autogen" data-kw="uncertain field badge AI inferred review card Needs review">
+      <div class="tc-head"><div class="tc-bar lb-p0"></div><div class="tc-inner" onclick="tgl(this)">
+        <div class="tc-id-col"><div class="tc-id">TC-AG-04</div><div class="tc-pills"><span class="sp sp-prd">PRD CG-9</span><span class="sp sp-video">Video fr5/12</span></div></div>
+        <div class="tc-title">AI-inferred fields show "Uncertain" / "Needs review" badge in review card (retired after Save)</div>
+        <div class="tc-badges"><span class="badge b-p0">P0</span><span class="badge b-det">Deterministic</span><span class="badge b-fix">CORRECTED</span></div>
+      </div><div class="tc-chev">▼</div></div>
+      <div class="tc-body"><div class="tc-body-L">
+        <div class="tc-fix-note"><span>⚠</span><span>v1 said "AI Generated = post-confirm badge". CORRECTION: "Uncertain" is the IN-REVIEW badge for AI-inferred fields. Fields from authoritative APIs (CrossRef, arXiv, Open Library) carry NO badge. After "Save N citations", ALL badges are retired.</span></div>
+        <div class="tc-sec"><div class="tc-lbl">Steps</div><div class="tc-steps"><ol><li>Auto-generate citations from a PDF without a DOI (LLM extraction path).</li><li>Open review card. Observe field indicators.</li><li>Click "Save N citations".</li><li>Check post-confirm citation in the panel.</li></ol></div></div>
+      </div><div class="tc-body-R">
+        <div class="tc-sec"><div class="tc-lbl">Expected Result</div><div class="tc-exp">In review: AI-inferred fields (e.g. Author) show "Uncertain" label and/or "Needs review" warning (video fr5: red triangle ⚠ on Author field, "Needs review." text below). Fields from API lookup show NO indicator. After "Save N citations": all Uncertain badges are removed. Citation added to panel without badge.</div></div>
+        <div class="tc-video">Video fr5/fr12: Author field has red warning triangle + "Needs review." text. Bottom shows "① Uncertain" badge. "Save 5 citations" CTA in footer.</div>
+      </div></div>
+    </div>
+
+    <div class="tc-card" data-p="p0" data-t="jud" data-new="false" data-fix="false" data-page="autogen" data-kw="citation accuracy metadata correct known PDF author year title">
+      <div class="tc-head"><div class="tc-bar lb-p0"></div><div class="tc-inner" onclick="tgl(this)">
+        <div class="tc-id-col"><div class="tc-id">TC-AG-05</div><div class="tc-pills"><span class="sp sp-prd">PRD Ship Bar</span></div></div>
+        <div class="tc-title">Extraction accuracy meets Ship Bar targets: Easy ≥95%, Medium ≥80%, Hard ≥60%</div>
+        <div class="tc-badges"><span class="badge b-p0">P0</span><span class="badge b-jud">Judgment</span></div>
+      </div><div class="tc-chev">▼</div></div>
+      <div class="tc-body"><div class="tc-body-L">
+        <div class="tc-prd">PRD Ship Bar: Easy (DOI/arXiv present) → 95%+ required fields correct. Medium (ISBN/clean metadata) → Title/Author/Year correct 80%+. Hard (no identifier, degraded) → Title/Author correct 60%+.</div>
+        <div class="tc-sec"><div class="tc-lbl">Steps</div><div class="tc-steps"><ol><li>Run 20 Easy, 20 Medium, 20 Hard test documents through extraction pipeline.</li><li>Score each: correct/partially-correct/wrong for required fields.</li></ol></div></div>
+      </div><div class="tc-body-R">
+        <div class="tc-sec"><div class="tc-lbl">Expected Result</div><div class="tc-exp">Easy (DOI/arXiv): ≥19/20 (95%) required fields correct. Medium (ISBN/clean): ≥16/20 (80%) Title+Author+Year correct. Hard (no ID, degraded): ≥12/20 (60%) Title+Author correct. Failures should show graceful degradation — incomplete citation with flagged fields, not a crash.</div></div>
+        <div class="tc-note">Judgment rubric: required field "correct" = exact match or acceptable normalisation (e.g. "Smith, J." == "John Smith").</div>
+      </div></div>
+    </div>
+
+    <div class="tc-card" data-p="p1" data-t="det" data-new="true" data-fix="false" data-page="autogen" data-kw="async streaming multi file 10 documents results appear as each resolves not wait batch">
+      <div class="tc-head"><div class="tc-bar lb-p1"></div><div class="tc-inner" onclick="tgl(this)">
+        <div class="tc-id-col"><div class="tc-id">TC-AG-06</div><div class="tc-pills"><span class="sp sp-prd">PRD CG-1</span></div></div>
+        <div class="tc-title">Multi-file upload: citations stream in asynchronously as each document resolves</div>
+        <div class="tc-badges"><span class="badge b-p1">P1</span><span class="badge b-det">Deterministic</span><span class="badge b-new">NEW</span></div>
+      </div><div class="tc-chev">▼</div></div>
+      <div class="tc-body"><div class="tc-body-L">
+        <div class="tc-prd">PRD: "A student uploading 10 documents sees results stream in as each resolves, rather than waiting for the full batch."</div>
+        <div class="tc-sec"><div class="tc-lbl">Steps</div><div class="tc-steps"><ol><li>Upload 5 PDFs of varying complexity simultaneously.</li><li>Watch the review panel as generation runs.</li></ol></div></div>
+      </div><div class="tc-body-R">
+        <div class="tc-sec"><div class="tc-lbl">Expected Result</div><div class="tc-exp">Review panel shows individual citation cards appearing progressively (first one or two appear while others are still "Generating citation / Analyzing…"). User does not wait for all 5 to complete before seeing any results. Video fr7 confirms "5 citations processing" with "Generating citation / Analyzing…" spinner shown while list builds.</div></div>
+        <div class="tc-video">Video fr7: Right panel shows "5 citations processing" header. One card visible with "Generating citation / Analyzing…" animation.</div>
+      </div></div>
+    </div>
+
+    <div class="tc-card" data-p="p1" data-t="det" data-new="true" data-fix="false" data-page="autogen" data-kw="DOI arXiv ISBN PubMed structured identifier API lookup confident metadata">
+      <div class="tc-head"><div class="tc-bar lb-p1"></div><div class="tc-inner" onclick="tgl(this)">
+        <div class="tc-id-col"><div class="tc-id">TC-AG-07</div><div class="tc-pills"><span class="sp sp-prd">PRD How It Works</span></div></div>
+        <div class="tc-title">DOI/arXiv/ISBN/PubMed ID detected → API lookup used, no Uncertain badge on resulting fields</div>
+        <div class="tc-badges"><span class="badge b-p1">P1</span><span class="badge b-det">Deterministic</span><span class="badge b-new">NEW</span></div>
+      </div><div class="tc-chev">▼</div></div>
+      <div class="tc-body"><div class="tc-body-L">
+        <div class="tc-prd">PRD extraction order: (1) LLM scans for DOI/arXiv/ISBN/PubMed ID → API lookup. (2) If no ID → LLM extracts from first 1-2 pages. Fields from authoritative API carry NO verification indicator.</div>
+        <div class="tc-sec"><div class="tc-lbl">Steps</div><div class="tc-steps"><ol><li>Upload a PDF that contains a visible DOI (e.g. "10.1016/j.xxx").</li><li>Review the generated citation.</li></ol></div></div>
+      </div><div class="tc-body-R">
+        <div class="tc-sec"><div class="tc-lbl">Expected Result</div><div class="tc-exp">Citation metadata populated from CrossRef/arXiv API. All fields correct and complete. NO "Uncertain" / "Needs review" badge on any field. Title, authors, year, journal, volume, issue, pages all present if available in API response.</div></div>
+      </div></div>
+    </div>
+
+    <div class="tc-card" data-p="p1" data-t="det" data-new="false" data-fix="false" data-page="autogen" data-kw="cite this source uncited PDF trigger generation all un-cited sources">
+      <div class="tc-head"><div class="tc-bar lb-p1"></div><div class="tc-inner" onclick="tgl(this)">
+        <div class="tc-id-col"><div class="tc-id">TC-AG-08</div><div class="tc-pills"><span class="sp sp-prd">PRD SP-2</span></div></div>
+        <div class="tc-title">"Cite this source" on uncited PDF triggers metadata extraction for ALL un-cited sources</div>
+        <div class="tc-badges"><span class="badge b-p1">P1</span><span class="badge b-det">Deterministic</span></div>
+      </div><div class="tc-chev">▼</div></div>
+      <div class="tc-body"><div class="tc-body-L">
+        <div class="tc-prd">PRD SP-2 AC: Triggers on-the-fly metadata extraction for ALL un-cited sources (not just the one clicked). Loading state shown. Once complete, Edit Source Details modal opens pre-populated.</div>
+        <div class="tc-sec"><div class="tc-lbl">Steps</div><div class="tc-steps"><ol><li>Project has 3 un-cited sources A, B, C.</li><li>Click "Cite this source" on source A.</li><li>Observe what happens to B and C.</li></ol></div></div>
+      </div><div class="tc-body-R">
+        <div class="tc-sec"><div class="tc-lbl">Expected Result</div><div class="tc-exp">Extraction triggers for A, B, AND C simultaneously. Loading state shown. After completion, Edit Source Details modal opens pre-populated for source A. Sources B and C also have citations ready (or in review queue).</div></div>
+      </div></div>
+    </div>
+
+    <div class="tc-card" data-p="p2" data-t="jud" data-new="true" data-fix="false" data-page="autogen" data-kw="source card generated PDF search manual entry one-page readable document sources panel">
+      <div class="tc-head"><div class="tc-bar lb-p2"></div><div class="tc-inner" onclick="tgl(this)">
+        <div class="tc-id-col"><div class="tc-id">TC-AG-09</div><div class="tc-pills"><span class="sp sp-prd">PRD Product Model</span></div></div>
+        <div class="tc-title">Sources added via search or manually generate a one-page source card PDF in Sources panel</div>
+        <div class="tc-badges"><span class="badge b-p2">P2</span><span class="badge b-jud">Judgment</span><span class="badge b-new">NEW</span></div>
+      </div><div class="tc-chev">▼</div></div>
+      <div class="tc-body"><div class="tc-body-L">
+        <div class="tc-prd">PRD Product Model: "The system generates a one-page source card — a readable PDF document containing the collected metadata — and adds it to the Sources panel. This means every source in the product has a viewable document."</div>
+        <div class="tc-sec"><div class="tc-lbl">Steps</div><div class="tc-steps"><ol><li>Add a source via title search (no file upload).</li><li>Open Sources panel and view the source.</li></ol></div></div>
+      </div><div class="tc-body-R">
+        <div class="tc-sec"><div class="tc-lbl">Expected Result</div><div class="tc-exp">Source appears in Sources panel with a viewable document (1-page source card PDF). The card contains the source's metadata (title, authors, year, etc.) in a readable layout. Split-view is available for this source — meaning it can be viewed alongside its citation form.</div></div>
+        <div class="tc-note">Judgment — source card readability and completeness assessed visually.</div>
+      </div></div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ═══════════════ REVIEW CITATIONS ═══════════════ -->
+<div class="wiki-page" id="page-review">
+  <div class="page-hdr">
+    <div class="breadcrumb"><a onclick="showPage('overview')">Wiki</a> › Review Citations</div>
+    <h1 class="page-h1">🔍 Review Citations — Split-View Flow</h1>
+    <div class="page-meta"><div class="meta-chip">10 cases</div><span class="sp sp-all">All sources</span></div>
+  </div>
+  <div class="callout cf"><div>⚠</div><div class="callout-body"><strong>4 v1 cases corrected here</strong><p>Review screen is a <strong>split-view</strong> (PDF left, form right) — not a flat list. "Save N citations" is the confirm CTA. "Uncertain" badges appear on individual FIELDS in the form, not on the card as a whole. Delete rule: any/all citations deletable.</p></div></div>
+  <div class="filter-bar"><span class="fl">Filter:</span>
+    <button class="fb active" onclick="fp('review','all',this)">All <span class="fbc">10</span></button>
+    <button class="fb fp0" onclick="fp('review','p0',this)">P0 <span class="fbc">5</span></button>
+    <button class="fb fp1" onclick="fp('review','p1',this)">P1 <span class="fbc">4</span></button>
+    <button class="fb fp2" onclick="fp('review','p2',this)">P2 <span class="fbc">1</span></button>
+    <button class="fb fnew" onclick="fp('review','new',this)">NEW <span class="fbc">4</span></button>
+    <button class="fb ffix" onclick="fp('review','fix',this)">CORRECTED <span class="fbc">4</span></button>
+  </div>
+  <div class="tc-list" id="tclist-review">
+
+    <div class="tc-card" data-p="p0" data-t="det" data-new="false" data-fix="true" data-page="review" data-kw="review citation split view PDF left citation form right layout">
+      <div class="tc-head"><div class="tc-bar lb-p0"></div><div class="tc-inner" onclick="tgl(this)">
+        <div class="tc-id-col"><div class="tc-id">TC-RC-01</div><div class="tc-pills"><span class="sp sp-video">Video fr5/7/12</span><span class="sp sp-prd">PRD SV-1</span></div></div>
+        <div class="tc-title">Review screen is split-view: PDF preview on left, citation form fields on right</div>
+        <div class="tc-badges"><span class="badge b-p0">P0</span><span class="badge b-det">Deterministic</span><span class="badge b-fix">CORRECTED</span></div>
+      </div><div class="tc-chev">▼</div></div>
+      <div class="tc-body"><div class="tc-body-L">
+        <div class="tc-fix-note"><span>⚠</span><span>v1 described Review as a flat citation card list. Video clearly shows split-view with PDF rendered on the left and citation form on the right.</span></div>
+        <div class="tc-sec"><div class="tc-lbl">Steps</div><div class="tc-steps"><ol><li>Upload 2 PDFs. Navigate to Citations panel to trigger generation.</li><li>Observe the Review Citation screen layout.</li></ol></div></div>
+      </div><div class="tc-body-R">
+        <div class="tc-sec"><div class="tc-lbl">Expected Result</div><div class="tc-exp">Left panel: PDF document rendered (first page visible). Right panel: citation form with fields (Title, Author, Year, Type dropdown, + More fields). Thumbnail strip of sources shown (top-left, fr7 shows stacked thumbnails). Right panel header: "X citations uploaded / processing" + style selector dropdown.</div></div>
+        <div class="tc-video">Video fr7: Left = Acrobat loading animation, Right = "5 citations processing" + "Generating citation / Analyzing…". Video fr12: Left = full PDF text, Right = citation form with "Needs review." on Author field.</div>
+      </div></div>
+    </div>
+
+    <div class="tc-card" data-p="p0" data-t="det" data-new="true" data-fix="false" data-page="review" data-kw="inline editable fields review card click to edit Enter Escape confirm cancel">
+      <div class="tc-head"><div class="tc-bar lb-p0"></div><div class="tc-inner" onclick="tgl(this)">
+        <div class="tc-id-col"><div class="tc-id">TC-RC-02</div><div class="tc-pills"><span class="sp sp-prd">PRD CG-3</span></div></div>
+        <div class="tc-title">Citation form fields in review are inline-editable: click to edit, Enter to confirm, Escape to cancel</div>
+        <div class="tc-badges"><span class="badge b-p0">P0</span><span class="badge b-det">Deterministic</span><span class="badge b-new">NEW</span></div>
+      </div><div class="tc-chev">▼</div></div>
+      <div class="tc-body"><div class="tc-body-L">
+        <div class="tc-prd">PRD CG-3 AC: "All fields on the review card are inline-editable: click to edit, Enter to confirm, Escape to cancel."</div>
+        <div class="tc-sec"><div class="tc-lbl">Steps</div><div class="tc-steps"><ol><li>In review screen, click the Title field.</li><li>Edit the text.</li><li>Press Enter — confirm it saves inline.</li><li>Click Author, edit, press Escape — confirm it reverts.</li></ol></div></div>
+      </div><div class="tc-body-R">
+        <div class="tc-sec"><div class="tc-lbl">Expected Result</div><div class="tc-exp">Clicking a field activates inline editing (text cursor appears). Enter: confirms the value, field returns to display mode with new value. Escape: cancels and reverts to original value. No modal needed for quick field edits during review.</div></div>
+      </div></div>
+    </div>
+
+    <div class="tc-card" data-p="p0" data-t="det" data-new="true" data-fix="false" data-page="review" data-kw="missing required fields orange border add author dashed footer count incomplete">
+      <div class="tc-head"><div class="tc-bar lb-p0"></div><div class="tc-inner" onclick="tgl(this)">
+        <div class="tc-id-col"><div class="tc-id">TC-RC-03</div><div class="tc-pills"><span class="sp sp-prd">PRD CG-4</span></div></div>
+        <div class="tc-title">Review cards with missing required fields show orange left border; footer shows incomplete count</div>
+        <div class="tc-badges"><span class="badge b-p0">P0</span><span class="badge b-det">Deterministic</span><span class="badge b-new">NEW</span></div>
+      </div><div class="tc-chev">▼</div></div>
+      <div class="tc-body"><div class="tc-body-L">
+        <div class="tc-prd">PRD CG-4: Orange left border on cards missing Title or Authors. Missing authors → dashed "Add author" prompt. Footer: "X citation(s) are missing required info and will appear as incomplete." Updates in real time as student edits.</div>
+        <div class="tc-sec"><div class="tc-lbl">Steps</div><div class="tc-steps"><ol><li>Have a citation in review with no Author populated.</li><li>Observe the card and footer.</li><li>Add an author and observe footer update.</li></ol></div></div>
+      </div><div class="tc-body-R">
+        <div class="tc-sec"><div class="tc-lbl">Expected Result</div><div class="tc-exp">Card with missing Author: orange left border visible, dashed "Add author" prompt in the Author field. Footer reads "1 citation(s) are missing required info and will appear as incomplete." After adding author: orange border disappears, footer count decrements to 0.</div></div>
+        <div class="tc-video">Video fr12 footer: "1 citation needs review" (exact label may differ from PRD copy — confirm with eng).</div>
+      </div></div>
+    </div>
+
+    <div class="tc-card" data-p="p0" data-t="det" data-new="true" data-fix="false" data-page="review" data-kw="Save N citations CTA button review footer confirm add all citations">
+      <div class="tc-head"><div class="tc-bar lb-p0"></div><div class="tc-inner" onclick="tgl(this)">
+        <div class="tc-id-col"><div class="tc-id">TC-RC-04</div><div class="tc-pills"><span class="sp sp-prd">PRD CG-6</span><span class="sp sp-video">Video fr5</span></div></div>
+        <div class="tc-title">"Save N citations" / "Add N Citation(s)" CTA moves all citations from review queue to panel</div>
+        <div class="tc-badges"><span class="badge b-p0">P0</span><span class="badge b-det">Deterministic</span><span class="badge b-new">NEW</span></div>
+      </div><div class="tc-chev">▼</div></div>
+      <div class="tc-body"><div class="tc-body-L">
+        <div class="tc-prd">PRD CG-6 AC: "Add [N] Citation(s)" always visible in review footer. Clicking moves all citations to main list. Incomplete citations added in incomplete state — student not blocked. Review panel closes, main list shown.</div>
+        <div class="tc-fix-note"><span>⚠</span><span>Video shows "Save 5 citations" label. PRD says "Add [N] Citation(s)". Confirm exact label with eng team before automating string assertion.</span></div>
+        <div class="tc-sec"><div class="tc-lbl">Steps</div><div class="tc-steps"><ol><li>In review with 5 citations (1 incomplete), click "Save 5 citations".</li></ol></div></div>
+      </div><div class="tc-body-R">
+        <div class="tc-sec"><div class="tc-lbl">Expected Result</div><div class="tc-exp">All 5 citations moved to Citations panel. Incomplete citation appears in panel with visual distinction (greyed-out). Review panel closes. Success toast shown: "5 citations saved" (video fr18 confirms green toast "⊙ 5 citations saved ×").</div></div>
+        <div class="tc-video">Video fr10/18: "5 citations saved" green toast appears after save. Citations now visible in left panel list.</div>
+      </div></div>
+    </div>
+
+    <div class="tc-card" data-p="p0" data-t="det" data-new="false" data-fix="true" data-page="review" data-kw="delete citation any all allowed no minimum primary secondary removed">
+      <div class="tc-head"><div class="tc-bar lb-p0"></div><div class="tc-inner" onclick="tgl(this)">
+        <div class="tc-id-col"><div class="tc-id">TC-RC-05</div><div class="tc-pills"><span class="sp sp-prd">PRD CM-4, Decision Jul 22</span></div></div>
+        <div class="tc-title">User can delete ANY or ALL citations — no minimum of 1 required</div>
+        <div class="tc-badges"><span class="badge b-p0">P0</span><span class="badge b-det">Deterministic</span><span class="badge b-fix">CORRECTED</span></div>
+      </div><div class="tc-chev">▼</div></div>
+      <div class="tc-body"><div class="tc-body-L">
+        <div class="tc-fix-note"><span>⚠</span><span>v1 stated "Delete only shown if 2+ citations". PRD Jul 22 Decision: "A user can delete any (LLM generated or manually created)/all citations." Primary/secondary citation concept removed.</span></div>
+        <div class="tc-sec"><div class="tc-lbl">Steps</div><div class="tc-steps"><ol><li>Generate 1 citation (only 1 in panel).</li><li>Click delete icon on the single citation.</li><li>Observe confirmation dialog.</li><li>Confirm deletion.</li></ol></div></div>
+      </div><div class="tc-body-R">
+        <div class="tc-sec"><div class="tc-lbl">Expected Result</div><div class="tc-exp">Delete icon is visible even with only 1 citation. Confirmation dialog: <code>"Remove this citation? This can't be undone."</code> with "Remove" and "Cancel" buttons. Confirming removes the citation. Panel shows empty state after last citation deleted. Delete works for LLM-generated and manually-created citations equally.</div></div>
+      </div></div>
+    </div>
+
+    <div class="tc-card" data-p="p1" data-t="det" data-new="false" data-fix="true" data-page="review" data-kw="edit all link full edit form review card return review queue">
+      <div class="tc-head"><div class="tc-bar lb-p1"></div><div class="tc-inner" onclick="tgl(this)">
+        <div class="tc-id-col"><div class="tc-id">TC-RC-06</div><div class="tc-pills"><span class="sp sp-prd">PRD CG-5</span></div></div>
+        <div class="tc-title">"Edit all" link from review card opens full edit form; save returns to review queue</div>
+        <div class="tc-badges"><span class="badge b-p1">P1</span><span class="badge b-det">Deterministic</span><span class="badge b-fix">CORRECTED</span></div>
+      </div><div class="tc-chev">▼</div></div>
+      <div class="tc-body"><div class="tc-body-L">
+        <div class="tc-prd">PRD CG-5 (P1): "Edit all" link on each review card. Saves return to Review Citations panel. Changes made in full edit form reflected in review card on return.</div>
+        <div class="tc-sec"><div class="tc-lbl">Steps</div><div class="tc-steps"><ol><li>In review, click "Edit all" on a citation card.</li><li>Make changes in full edit form.</li><li>Click Save.</li></ol></div></div>
+      </div><div class="tc-body-R">
+        <div class="tc-sec"><div class="tc-lbl">Expected Result</div><div class="tc-exp">Full Citation Edit form opens with all fields, source type selector, and live preview. After Save: returns to Review Citations screen (not main panel). Review card reflects the changes just made in the full form.</div></div>
+      </div></div>
+    </div>
+
+    <div class="tc-card" data-p="p1" data-t="det" data-new="true" data-fix="false" data-page="review" data-kw="thumbnail strip navigate between citations sources review panel left side">
+      <div class="tc-head"><div class="tc-bar lb-p1"></div><div class="tc-inner" onclick="tgl(this)">
+        <div class="tc-id-col"><div class="tc-id">TC-RC-07</div><div class="tc-pills"><span class="sp sp-video">Video fr7/12</span></div></div>
+        <div class="tc-title">Thumbnail strip on left of review screen lets user navigate between multiple sources</div>
+        <div class="tc-badges"><span class="badge b-p1">P1</span><span class="badge b-det">Deterministic</span><span class="badge b-new">NEW</span></div>
+      </div><div class="tc-chev">▼</div></div>
+      <div class="tc-body"><div class="tc-body-L">
+        <div class="tc-video">Video fr12: 4 thumbnail cards visible in left column (stacked). Selecting a thumbnail changes the PDF preview and right-panel form to that source's citation.</div>
+        <div class="tc-sec"><div class="tc-lbl">Steps</div><div class="tc-steps"><ol><li>Upload 4 PDFs. Enter review screen.</li><li>Click a thumbnail other than the currently selected one.</li></ol></div></div>
+      </div><div class="tc-body-R">
+        <div class="tc-sec"><div class="tc-lbl">Expected Result</div><div class="tc-exp">Clicking a thumbnail: PDF preview on left updates to that source's document. Right panel form updates to that source's citation fields. Selected thumbnail is visually distinguished (border/highlight). Count header updates.</div></div>
+      </div></div>
+    </div>
+
+    <div class="tc-card" data-p="p1" data-t="det" data-new="true" data-fix="false" data-page="review" data-kw="style selector APA review screen format selector dropdown">
+      <div class="tc-head"><div class="tc-bar lb-p1"></div><div class="tc-inner" onclick="tgl(this)">
+        <div class="tc-id-col"><div class="tc-id">TC-RC-08</div><div class="tc-pills"><span class="sp sp-video">Video fr5/12</span></div></div>
+        <div class="tc-title">Style selector visible in review screen header; changing style re-renders form preview</div>
+        <div class="tc-badges"><span class="badge b-p1">P1</span><span class="badge b-det">Deterministic</span><span class="badge b-new">NEW</span></div>
+      </div><div class="tc-chev">▼</div></div>
+      <div class="tc-body"><div class="tc-body-L">
+        <div class="tc-video">Video fr5/fr12: Right panel header shows "APA 7th edition ▾" dropdown in top-right corner of review panel.</div>
+        <div class="tc-sec"><div class="tc-lbl">Steps</div><div class="tc-steps"><ol><li>In review, observe style dropdown (currently "APA 7th edition").</li><li>Change to MLA 9th.</li></ol></div></div>
+      </div><div class="tc-body-R">
+        <div class="tc-sec"><div class="tc-lbl">Expected Result</div><div class="tc-exp">Style dropdown is accessible from within review screen. Changing style updates how the live preview in the form renders (if a preview is shown). The selected style carries forward to the main Citations panel after "Save N citations".</div></div>
+      </div></div>
+    </div>
+
+    <div class="tc-card" data-p="p1" data-t="det" data-new="false" data-fix="true" data-page="review" data-kw="review citation source already has citation skip go directly review citations screen">
+      <div class="tc-head"><div class="tc-bar lb-p1"></div><div class="tc-inner" onclick="tgl(this)">
+        <div class="tc-id-col"><div class="tc-id">TC-RC-09</div><div class="tc-pills"><span class="sp sp-prd">PRD Decision Jul 22</span></div></div>
+        <div class="tc-title">"Cite this source" on source with existing citation goes directly to Review Citations (no re-generation)</div>
+        <div class="tc-badges"><span class="badge b-p1">P1</span><span class="badge b-det">Deterministic</span><span class="badge b-fix">CORRECTED</span></div>
+      </div><div class="tc-chev">▼</div></div>
+      <div class="tc-body"><div class="tc-body-L">
+        <div class="tc-fix-note"><span>⚠</span><span>v1 said "existing citation is highlighted, no duplicate created". PRD Jul 22: "If a source already has one or more citations, 'Cite this source' takes user directly to Review Citations screen instead of rerunning the pipeline."</span></div>
+        <div class="tc-sec"><div class="tc-lbl">Steps</div><div class="tc-steps"><ol><li>Source already has 1 citation (LLM or manual).</li><li>Click "Cite this source" on that source.</li></ol></div></div>
+      </div><div class="tc-body-R">
+        <div class="tc-sec"><div class="tc-lbl">Expected Result</div><div class="tc-exp">Review Citations screen opens directly — no new generation pipeline runs. Existing citation(s) shown in review for confirmation/editing. Corner case: even if user deleted the LLM citation and only a manual one remains, still opens Review Citations (not re-generation).</div></div>
+      </div></div>
+    </div>
+
+    <div class="tc-card" data-p="p2" data-t="det" data-new="false" data-fix="false" data-page="review" data-kw="review citation empty state no citations generated CTA">
+      <div class="tc-head"><div class="tc-bar lb-p2"></div><div class="tc-inner" onclick="tgl(this)">
+        <div class="tc-id-col"><div class="tc-id">TC-RC-10</div><div class="tc-pills"><span class="sp sp-figma">Figma</span></div></div>
+        <div class="tc-title">Review Citations empty state renders when no citations are in queue</div>
+        <div class="tc-badges"><span class="badge b-p2">P2</span><span class="badge b-det">Deterministic</span></div>
+      </div><div class="tc-chev">▼</div></div>
+      <div class="tc-body"><div class="tc-body-L">
+        <div class="tc-sec"><div class="tc-lbl">Steps</div><div class="tc-steps"><ol><li>Open Review Citations with no citations in queue.</li></ol></div></div>
+      </div><div class="tc-body-R">
+        <div class="tc-sec"><div class="tc-lbl">Expected Result</div><div class="tc-exp">BTS - Review Citation Empty State shown. CTA to add or generate citations present. Not an error message. "Save N citations" CTA disabled or hidden.</div></div>
+      </div></div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ═══════════════ CITATIONS PANEL ═══════════════ -->
+<div class="wiki-page" id="page-panel">
+  <div class="page-hdr">
+    <div class="breadcrumb"><a onclick="showPage('overview')">Wiki</a> › Citations Panel</div>
+    <h1 class="page-h1">🗂 Citations Panel — Styles, Edit, Actions</h1>
+    <div class="page-meta"><div class="meta-chip">12 cases</div><span class="sp sp-all">All sources</span></div>
+  </div>
+  <div class="filter-bar"><span class="fl">Filter:</span>
+    <button class="fb active" onclick="fp('panel','all',this)">All <span class="fbc">12</span></button>
+    <button class="fb fp0" onclick="fp('panel','p0',this)">P0 <span class="fbc">5</span></button>
+    <button class="fb fp1" onclick="fp('panel','p1',this)">P1 <span class="fbc">5</span></button>
+    <button class="fb fp2" onclick="fp('panel','p2',this)">P2 <span class="fbc">2</span></button>
+    <button class="fb fnew" onclick="fp('panel','new',this)">NEW <span class="fbc">5</span></button>
+    <button class="fb ffix" onclick="fp('panel','fix',this)">CORRECTED <span class="fbc">5</span></button>
+  </div>
+  <div class="tc-list" id="tclist-panel">
+
+    <div class="tc-card" data-p="p0" data-t="det" data-new="false" data-fix="true" data-page="panel" data-kw="six styles APA MLA Chicago NB AD IEEE AMA style selector prominent">
+      <div class="tc-head"><div class="tc-bar lb-p0"></div><div class="tc-inner" onclick="tgl(this)">
+        <div class="tc-id-col"><div class="tc-id">TC-CP-01</div><div class="tc-pills"><span class="sp sp-prd">PRD CS-1</span></div></div>
+        <div class="tc-title">Style selector shows 6 prominent styles: APA 7th, MLA 9th, Chicago NB, Chicago AD, IEEE, AMA 11th</div>
+        <div class="tc-badges"><span class="badge b-p0">P0</span><span class="badge b-det">Deterministic</span><span class="badge b-fix">CORRECTED</span></div>
+      </div><div class="tc-chev">▼</div></div>
+      <div class="tc-body"><div class="tc-body-L">
+        <div class="tc-fix-note"><span>⚠</span><span>v1 listed "Chicago, AMA, IEEE" as the 3 tabs. PRD CS-1 specifies 6 styles. Additionally, 50–100 CSL library styles accessible via search in selector.</span></div>
+        <div class="tc-sec"><div class="tc-lbl">Steps</div><div class="tc-steps"><ol><li>Open Citations panel with ≥1 citation.</li><li>Open/inspect the style selector.</li><li>Search for a non-primary style (e.g. "Harvard").</li></ol></div></div>
+      </div><div class="tc-body-R">
+        <div class="tc-sec"><div class="tc-lbl">Expected Result</div><div class="tc-exp">6 styles prominently surfaced: APA 7th edition, MLA 9th edition, Chicago 17th (Notes-Bibliography), Chicago 17th (Author-Date), IEEE, AMA 11th edition. Chicago appears as TWO entries — NB and Author-Date are distinct because they produce different output. Searching the selector also finds additional CSL styles (50–100 available). Selecting any style immediately re-renders all citations and updates the reference list heading ("References" / "Works Cited" / "Bibliography").</div></div>
+      </div></div>
+    </div>
+
+    <div class="tc-card" data-p="p0" data-t="det" data-new="false" data-fix="false" data-page="panel" data-kw="copy citation clipboard plain text no HTML Copied toast 2 seconds">
+      <div class="tc-head"><div class="tc-bar lb-p0"></div><div class="tc-inner" onclick="tgl(this)">
+        <div class="tc-id-col"><div class="tc-id">TC-CP-02</div><div class="tc-pills"><span class="sp sp-prd">PRD EX-1</span></div></div>
+        <div class="tc-title">Copy icon on each citation row copies plain text to clipboard; "Copied" toast appears for 2s</div>
+        <div class="tc-badges"><span class="badge b-p0">P0</span><span class="badge b-det">Deterministic</span></div>
+      </div><div class="tc-chev">▼</div></div>
+      <div class="tc-body"><div class="tc-body-L">
+        <div class="tc-prd">PRD EX-1: Copy icon = primary hover action. Copies as plain text (no HTML). "Copied" toast 2 seconds.</div>
+        <div class="tc-sec"><div class="tc-lbl">Steps</div><div class="tc-steps"><ol><li>Hover a citation row. Click copy icon.</li><li>Paste into plain text editor. Check for HTML.</li></ol></div></div>
+      </div><div class="tc-body-R">
+        <div class="tc-sec"><div class="tc-lbl">Expected Result</div><div class="tc-exp">Clipboard contains plain text only — no HTML tags, no rich formatting codes. "Copied" toast visible for exactly ~2 seconds then disappears. Copied text matches current style formatting.</div></div>
+      </div></div>
+    </div>
+
+    <div class="tc-card" data-p="p0" data-t="det" data-new="false" data-fix="true" data-page="panel" data-kw="overflow menu Edit Duplicate Delete citation row three dot">
+      <div class="tc-head"><div class="tc-bar lb-p0"></div><div class="tc-inner" onclick="tgl(this)">
+        <div class="tc-id-col"><div class="tc-id">TC-CP-03</div><div class="tc-pills"><span class="sp sp-video">Video fr10/15/30</span></div></div>
+        <div class="tc-title">Citation row overflow (···) menu contains Edit, Duplicate, Delete</div>
+        <div class="tc-badges"><span class="badge b-p0">P0</span><span class="badge b-det">Deterministic</span><span class="badge b-fix">CORRECTED</span></div>
+      </div><div class="tc-chev">▼</div></div>
+      <div class="tc-body"><div class="tc-body-L">
+        <div class="tc-fix-note"><span>⚠</span><span>v1 said overflow = "Edit, Copy, Delete". Video fr10/15/30 confirms: <strong>Edit, Duplicate, Delete</strong>. Copy is a separate icon on the citation row, not in overflow.</span></div>
+        <div class="tc-sec"><div class="tc-lbl">Steps</div><div class="tc-steps"><ol><li>In Citations panel, hover a citation row. Click ··· overflow.</li><li>Observe menu options.</li></ol></div></div>
+      </div><div class="tc-body-R">
+        <div class="tc-sec"><div class="tc-lbl">Expected Result</div><div class="tc-exp">Menu shows exactly 3 items: Edit, Duplicate, Delete. Edit: opens full citation edit form. Duplicate: creates a copy of the citation in the panel. Delete: shows confirmation "Remove this citation? This can't be undone."</div></div>
+        <div class="tc-video">Video fr15/30: Overflow open, shows "Edit / Duplicate / Delete" three items.</div>
+      </div></div>
+    </div>
+
+    <div class="tc-card" data-p="p0" data-t="det" data-new="true" data-fix="false" data-page="panel" data-kw="include exclude checkbox citation CM-1 opacity reduced excluded not copied">
+      <div class="tc-head"><div class="tc-bar lb-p0"></div><div class="tc-inner" onclick="tgl(this)">
+        <div class="tc-id-col"><div class="tc-id">TC-CP-04</div><div class="tc-pills"><span class="sp sp-prd">PRD CM-1</span></div></div>
+        <div class="tc-title">Include/exclude checkbox per citation; excluded citations are visually reduced and omitted from copy/export</div>
+        <div class="tc-badges"><span class="badge b-p0">P0</span><span class="badge b-det">Deterministic</span><span class="badge b-new">NEW</span></div>
+      </div><div class="tc-chev">▼</div></div>
+      <div class="tc-body"><div class="tc-body-L">
+        <div class="tc-prd">PRD CM-1: Each citation row has include/exclude checkbox. Unchecked = remains visible, not included in copy/export. Excluded = visually distinguished (reduced opacity).</div>
+        <div class="tc-sec"><div class="tc-lbl">Steps</div><div class="tc-steps"><ol><li>Panel has 3 citations. Uncheck citation #2.</li><li>Click "Copy all" / observe label change.</li><li>Paste into editor.</li></ol></div></div>
+      </div><div class="tc-body-R">
+        <div class="tc-sec"><div class="tc-lbl">Expected Result</div><div class="tc-exp">Citation #2 shows reduced opacity but remains in list. "Copy all" label changes to "Copy selected" (EX-3). Pasted text contains only citations #1 and #3. Citation #2 not in clipboard. Export also omits excluded citations.</div></div>
+      </div></div>
+    </div>
+
+    <div class="tc-card" data-p="p0" data-t="det" data-new="true" data-fix="false" data-page="panel" data-kw="incomplete citation greyed out excluded by default missing required info hover edit">
+      <div class="tc-head"><div class="tc-bar lb-p0"></div><div class="tc-inner" onclick="tgl(this)">
+        <div class="tc-id-col"><div class="tc-id">TC-CP-05</div><div class="tc-pills"><span class="sp sp-prd">PRD CM-2, CM-3</span></div></div>
+        <div class="tc-title">Incomplete citations are greyed-out, excluded by default, and always sorted to top of list</div>
+        <div class="tc-badges"><span class="badge b-p0">P0</span><span class="badge b-det">Deterministic</span><span class="badge b-new">NEW</span></div>
+      </div><div class="tc-chev">▼</div></div>
+      <div class="tc-body"><div class="tc-body-L">
+        <div class="tc-prd">PRD CM-2: Incomplete = empty Title or no Authors. Greyed-out, not selected by default. Hover: "Missing required info — click to complete." Click: opens full edit form. CM-3: Incomplete citations always sort to top regardless of sort order.</div>
+        <div class="tc-sec"><div class="tc-lbl">Steps</div><div class="tc-steps"><ol><li>Have 1 incomplete citation (no author) and 2 complete ones.</li><li>Sort by Author A-Z. Check order.</li><li>Sort by Year newest. Check order.</li><li>Hover incomplete citation.</li></ol></div></div>
+      </div><div class="tc-body-R">
+        <div class="tc-sec"><div class="tc-lbl">Expected Result</div><div class="tc-exp">Incomplete citation: greyed-out appearance, checkbox unchecked by default. Always appears at TOP of list regardless of sort order. Hovering shows "Missing required info — click to complete." Clicking opens full edit form with missing field(s) highlighted. After completing, citation moves to correct sort position.</div></div>
+      </div></div>
+    </div>
+
+    <div class="tc-card" data-p="p1" data-t="det" data-new="false" data-fix="true" data-page="panel" data-kw="Chicago Notes Bibliography footnote ibid not parenthetical in-text">
+      <div class="tc-head"><div class="tc-bar lb-p1"></div><div class="tc-inner" onclick="tgl(this)">
+        <div class="tc-id-col"><div class="tc-id">TC-CP-06</div><div class="tc-pills"><span class="sp sp-prd">PRD CS-4, IT-1</span></div></div>
+        <div class="tc-title">Chicago Notes-Bibliography style shows Footnote + Ibid. forms, not parenthetical</div>
+        <div class="tc-badges"><span class="badge b-p1">P1</span><span class="badge b-det">Deterministic</span><span class="badge b-fix">CORRECTED</span></div>
+      </div><div class="tc-chev">▼</div></div>
+      <div class="tc-body"><div class="tc-body-L">
+        <div class="tc-fix-note"><span>⚠</span><span>v1 treated Chicago NB as parenthetical. PRD CS-4: Chicago NB replaces parenthetical/narrative with Footnote and Ibid. fields in the in-text citation modal.</span></div>
+        <div class="tc-prd">PRD CS-4: In-text citation modal for Chicago NB shows "Footnote" and "Ibid." fields. Note reads: "Chicago Notes-Bibliography uses footnotes rather than parenthetical citations. Copy this text into your footnote."</div>
+        <div class="tc-sec"><div class="tc-lbl">Steps</div><div class="tc-steps"><ol><li>Set style to Chicago 17th (Notes-Bibliography).</li><li>Click "In-text citation" on any citation row.</li></ol></div></div>
+      </div><div class="tc-body-R">
+        <div class="tc-sec"><div class="tc-lbl">Expected Result</div><div class="tc-exp">In-text citation modal shows: "Footnote" field (formatted first-citation footnote text) and "Ibid." field (shortened subsequent-citation form). NO parenthetical or narrative fields shown. Note explains footnote usage. Each field has its own copy button.</div></div>
+      </div></div>
+    </div>
+
+    <div class="tc-card" data-p="p1" data-t="det" data-new="true" data-fix="false" data-page="panel" data-kw="live preview formatted citation editing fields real time updates">
+      <div class="tc-head"><div class="tc-bar lb-p1"></div><div class="tc-inner" onclick="tgl(this)">
+        <div class="tc-id-col"><div class="tc-id">TC-CP-07</div><div class="tc-pills"><span class="sp sp-prd">PRD CF-1</span></div></div>
+        <div class="tc-title">Citation edit form shows live preview that updates in real time as fields change</div>
+        <div class="tc-badges"><span class="badge b-p1">P1</span><span class="badge b-det">Deterministic</span><span class="badge b-new">NEW</span></div>
+      </div><div class="tc-chev">▼</div></div>
+      <div class="tc-body"><div class="tc-body-L">
+        <div class="tc-prd">PRD CF-1: "A rendered citation preview updates in real time as any field value changes. Preview uses the style selected in the form's local style selector. Preview renders formatting (e.g. italics) visually but copies as plain text."</div>
+        <div class="tc-sec"><div class="tc-lbl">Steps</div><div class="tc-steps"><ol><li>Open edit form for any citation.</li><li>Change the Author field. Observe preview.</li><li>Change the Year. Observe preview.</li><li>Copy from the preview.</li></ol></div></div>
+      </div><div class="tc-body-R">
+        <div class="tc-sec"><div class="tc-lbl">Expected Result</div><div class="tc-exp">Preview panel updates immediately on each keystroke (or on field blur). Preview shows correct formatting (italics for journal/book titles). Copying from preview pastes plain text (no HTML). Preview is never stale relative to current field values.</div></div>
+      </div></div>
+    </div>
+
+    <div class="tc-card" data-p="p1" data-t="det" data-new="true" data-fix="false" data-page="panel" data-kw="sort author A-Z year newest first ascending descending toggle">
+      <div class="tc-head"><div class="tc-bar lb-p1"></div><div class="tc-inner" onclick="tgl(this)">
+        <div class="tc-id-col"><div class="tc-id">TC-CP-08</div><div class="tc-pills"><span class="sp sp-prd">PRD CM-3</span></div></div>
+        <div class="tc-title">Sort: Author A–Z (default) and Year newest first, each with ascending/descending toggle</div>
+        <div class="tc-badges"><span class="badge b-p1">P1</span><span class="badge b-det">Deterministic</span><span class="badge b-new">NEW</span></div>
+      </div><div class="tc-chev">▼</div></div>
+      <div class="tc-body"><div class="tc-body-L">
+        <div class="tc-prd">PRD CM-3: Sort options: Author (A-Z) default, Year (newest first). Each has ascending/descending toggle. Incomplete always sort to top regardless.</div>
+        <div class="tc-sec"><div class="tc-lbl">Steps</div><div class="tc-steps"><ol><li>Add citations with different authors and years.</li><li>Confirm default sort is Author A-Z.</li><li>Switch to Year newest first. Confirm order.</li><li>Toggle to Year oldest first. Confirm order.</li></ol></div></div>
+      </div><div class="tc-body-R">
+        <div class="tc-sec"><div class="tc-lbl">Expected Result</div><div class="tc-exp">Default: alphabetical by first author surname A→Z. Year newest: descending by year (2024, 2022, 2019…). Toggle: flips sort direction. Incomplete citations stay pinned to top in all sort orders.</div></div>
+      </div></div>
+    </div>
+
+    <div class="tc-card" data-p="p1" data-t="det" data-new="false" data-fix="true" data-page="panel" data-kw="duplicate citation overflow menu create copy citation panel">
+      <div class="tc-head"><div class="tc-bar lb-p1"></div><div class="tc-inner" onclick="tgl(this)">
+        <div class="tc-id-col"><div class="tc-id">TC-CP-09</div><div class="tc-pills"><span class="sp sp-video">Video fr15/30</span></div></div>
+        <div class="tc-title">Duplicate from overflow menu creates a copy of the citation in the panel</div>
+        <div class="tc-badges"><span class="badge b-p1">P1</span><span class="badge b-det">Deterministic</span><span class="badge b-fix">CORRECTED</span></div>
+      </div><div class="tc-chev">▼</div></div>
+      <div class="tc-body"><div class="tc-body-L">
+        <div class="tc-fix-note"><span>⚠</span><span>Not in PRD requirements explicitly but confirmed in video. "Duplicate" is the 2nd item in the overflow menu. Added as a new test case from video evidence.</span></div>
+        <div class="tc-sec"><div class="tc-lbl">Steps</div><div class="tc-steps"><ol><li>Open citation overflow menu.</li><li>Click "Duplicate".</li></ol></div></div>
+      </div><div class="tc-body-R">
+        <div class="tc-sec"><div class="tc-lbl">Expected Result</div><div class="tc-exp">A copy of the citation appears in the Citations panel list. The duplicate is independent (editing one does not affect the other). Duplicate is included by default (checkbox checked). Toast or visual indicator confirms duplication.</div></div>
+        <div class="tc-video">Video fr15/30: Overflow menu shows "Edit / Duplicate / Delete" — Duplicate confirmed present.</div>
+      </div></div>
+    </div>
+
+    <div class="tc-card" data-p="p1" data-t="det" data-new="true" data-fix="false" data-page="panel" data-kw="no author citation begins title in-text first few words quotation marks">
+      <div class="tc-head"><div class="tc-bar lb-p1"></div><div class="tc-inner" onclick="tgl(this)">
+        <div class="tc-id-col"><div class="tc-id">TC-CP-10</div><div class="tc-pills"><span class="sp sp-prd">PRD CS-2, CS-3</span></div></div>
+        <div class="tc-title">No-author citation uses title in reference; "n.d." when no year</div>
+        <div class="tc-badges"><span class="badge b-p1">P1</span><span class="badge b-det">Deterministic</span><span class="badge b-new">NEW</span></div>
+      </div><div class="tc-chev">▼</div></div>
+      <div class="tc-body"><div class="tc-body-L">
+        <div class="tc-prd">PRD CS-2: No authors → reference list entry begins with Title. In-text falls back to first few words of title in quotation marks. CS-3: No year → all styles display "n.d." in year position.</div>
+        <div class="tc-sec"><div class="tc-lbl">Steps</div><div class="tc-steps"><ol><li>Create a citation with no Author and no Year.</li><li>View in APA style.</li><li>Click In-text citation.</li></ol></div></div>
+      </div><div class="tc-body-R">
+        <div class="tc-sec"><div class="tc-lbl">Expected Result</div><div class="tc-exp">Reference list entry starts with Title (not a blank author position). Year field shows <code>n.d.</code> In-text citation shows <code>("Title Words…," n.d.)</code> per APA style. No crash or empty brackets.</div></div>
+      </div></div>
+    </div>
+
+    <div class="tc-card" data-p="p2" data-t="jud" data-new="false" data-fix="false" data-page="panel" data-kw="visual layout design fidelity citations panel desktop APA active">
+      <div class="tc-head"><div class="tc-bar lb-p2"></div><div class="tc-inner" onclick="tgl(this)">
+        <div class="tc-id-col"><div class="tc-id">TC-CP-11</div><div class="tc-pills"><span class="sp sp-figma">Figma</span></div></div>
+        <div class="tc-title">Citations panel visual layout matches Figma spec (desktop, APA active)</div>
+        <div class="tc-badges"><span class="badge b-p2">P2</span><span class="badge b-jud">Judgment</span></div>
+      </div><div class="tc-chev">▼</div></div>
+      <div class="tc-body"><div class="tc-body-L">
+        <div class="tc-sec"><div class="tc-lbl">Steps</div><div class="tc-steps"><ol><li>Open Citations panel on desktop, APA style active, 3+ citations.</li><li>Compare layout to Figma CITATIONS PANEL section.</li></ol></div></div>
+      </div><div class="tc-body-R">
+        <div class="tc-sec"><div class="tc-lbl">Expected Result</div><div class="tc-exp">Layout, typography, spacing, icon placement match Figma spec. Citation rows have correct hierarchy: formatted citation text prominent, metadata secondary, action icons aligned right. Style selector visible at panel top. "Add or browse sources" input area at top.</div></div>
+        <div class="tc-video">Video fr10: panel header "Citations", subheader "Add or browse sources to generate citations.", drag-drop zone, Book type selector, search bar, "Added 5 citations" count + "APA 7th edition ▾" sort controls.</div>
+        <div class="tc-note">Judgment — typography, spacing, component correctness, color assessed visually against Figma.</div>
+      </div></div>
+    </div>
+
+    <div class="tc-card" data-p="p2" data-t="det" data-new="false" data-fix="false" data-page="panel" data-kw="confirm delete dialog Remove this citation cannot be undone">
+      <div class="tc-head"><div class="tc-bar lb-p2"></div><div class="tc-inner" onclick="tgl(this)">
+        <div class="tc-id-col"><div class="tc-id">TC-CP-12</div><div class="tc-pills"><span class="sp sp-prd">PRD CM-4</span></div></div>
+        <div class="tc-title">Delete confirmation dialog exact copy: "Remove this citation? This can't be undone."</div>
+        <div class="tc-badges"><span class="badge b-p2">P2</span><span class="badge b-det">Deterministic</span></div>
+      </div><div class="tc-chev">▼</div></div>
+      <div class="tc-body"><div class="tc-body-L">
+        <div class="tc-prd">PRD CM-4 exact copy: "Remove this citation? This can't be undone." with "Remove" and "Cancel" actions.</div>
+        <div class="tc-sec"><div class="tc-lbl">Steps</div><div class="tc-steps"><ol><li>Click delete icon on any citation.</li><li>Read dialog copy exactly.</li></ol></div></div>
+      </div><div class="tc-body-R">
+        <div class="tc-sec"><div class="tc-lbl">Expected Result</div><div class="tc-exp">Dialog body: <code>"Remove this citation? This can't be undone."</code> — exact string. Two buttons: "Remove" (destructive/red) and "Cancel". No other copy. Clicking Cancel: dialog closes, citation unchanged. Clicking Remove: citation permanently deleted.</div></div>
+      </div></div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ═══════════════ SEARCH & ADD ═══════════════ -->
+<div class="wiki-page" id="page-search">
+  <div class="page-hdr">
+    <div class="breadcrumb"><a onclick="showPage('overview')">Wiki</a> › Search & Add</div>
+    <h1 class="page-h1">🔎 Search & Add Citations</h1>
+    <div class="page-meta"><div class="meta-chip">9 cases</div><span class="sp sp-prd">PRD</span><span class="sp sp-video">Video</span></div>
+  </div>
+  <div class="filter-bar"><span class="fl">Filter:</span>
+    <button class="fb active" onclick="fp('search','all',this)">All <span class="fbc">9</span></button>
+    <button class="fb fp0" onclick="fp('search','p0',this)">P0 <span class="fbc">4</span></button>
+    <button class="fb fp1" onclick="fp('search','p1',this)">P1 <span class="fbc">4</span></button>
+    <button class="fb fp2" onclick="fp('search','p2',this)">P2 <span class="fbc">1</span></button>
+    <button class="fb fnew" onclick="fp('search','new',this)">NEW <span class="fbc">3</span></button>
+  </div>
+  <div class="tc-list" id="tclist-search">
+
+    <div class="tc-card" data-p="p0" data-t="det" data-new="false" data-fix="false" data-page="search" data-kw="upload file drag drop file picker PDF DOCX PPTX TXT XLSX 100MB batch">
+      <div class="tc-head"><div class="tc-bar lb-p0"></div><div class="tc-inner" onclick="tgl(this)">
+        <div class="tc-id-col"><div class="tc-id">TC-SA-01</div><div class="tc-pills"><span class="sp sp-prd">PRD CI-1</span><span class="sp sp-video">Video fr1</span></div></div>
+        <div class="tc-title">Upload zone accepts PDF, DOCX, PPTX, TXT, XLSX up to 100MB each; multiple files in one batch</div>
+        <div class="tc-badges"><span class="badge b-p0">P0</span><span class="badge b-det">Deterministic</span></div>
+      </div><div class="tc-chev">▼</div></div>
+      <div class="tc-body"><div class="tc-body-L">
+        <div class="tc-prd">PRD CI-1: Drag-and-drop or file picker. Multiple files in single batch. 100MB per file (video fr1 fine print).</div>
+        <div class="tc-sec"><div class="tc-lbl">Steps</div><div class="tc-steps"><ol><li>Drag a PDF onto the upload zone. Confirm accepted.</li><li>Test DOCX, PPTX, TXT, XLSX each.</li><li>Upload a file exactly at 100MB boundary.</li><li>Upload multiple files at once.</li></ol></div></div>
+      </div><div class="tc-body-R">
+        <div class="tc-sec"><div class="tc-lbl">Expected Result</div><div class="tc-exp">All 5 formats accepted (PDF, DOCX, PPTX, TXT, XLSX). Files ≤100MB accepted; file >100MB rejected with error message. Multiple files uploaded simultaneously trigger batch extraction. Video fr1 fine print: "You can upload PDF, DOCX, XLSX, PPTX, TXT, and more, up to 100MB each file."</div></div>
+      </div></div>
+    </div>
+
+    <div class="tc-card" data-p="p0" data-t="det" data-new="false" data-fix="false" data-page="search" data-kw="search title DOI ISBN arXiv PubMed free text query results title bold authors year">
+      <div class="tc-head"><div class="tc-bar lb-p0"></div><div class="tc-inner" onclick="tgl(this)">
+        <div class="tc-id-col"><div class="tc-id">TC-SA-02</div><div class="tc-pills"><span class="sp sp-prd">PRD CI-3</span><span class="sp sp-video">Video fr25</span></div></div>
+        <div class="tc-title">Search accepts title, DOI, ISBN, arXiv ID, PubMed ID; results show title (bold), authors, year</div>
+        <div class="tc-badges"><span class="badge b-p0">P0</span><span class="badge b-det">Deterministic</span></div>
+      </div><div class="tc-chev">▼</div></div>
+      <div class="tc-body"><div class="tc-body-L">
+        <div class="tc-prd">PRD CI-3: Structured identifiers detected and routed to appropriate lookup API. Results: title (bold), authors, year. "No results found." if no match. "Cite manually" option shown.</div>
+        <div class="tc-sec"><div class="tc-lbl">Steps</div><div class="tc-steps"><ol><li>Type a DOI (10.xxxx/…) in search bar. Observe routing.</li><li>Type a keyword title query. Observe results.</li><li>Type gibberish. Observe No Results state.</li></ol></div></div>
+      </div><div class="tc-body-R">
+        <div class="tc-sec"><div class="tc-lbl">Expected Result</div><div class="tc-exp">DOI/ISBN/arXiv/PubMed: routes to appropriate API, pre-populates all available fields. Free text: returns list of results showing title (bold), authors, year. Video fr25 confirms dropdown with results: "Journal article · 2010 · Author" format. Escape key dismisses results panel.</div></div>
+        <div class="tc-video">Video fr25: Search dropdown shows results list with "Add manually" as top option, then journal article results each showing source type, year, and authors.</div>
+      </div></div>
+    </div>
+
+    <div class="tc-card" data-p="p0" data-t="det" data-new="true" data-fix="false" data-page="search" data-kw="Add manually top option search dropdown cite manually always visible">
+      <div class="tc-head"><div class="tc-bar lb-p0"></div><div class="tc-inner" onclick="tgl(this)">
+        <div class="tc-id-col"><div class="tc-id">TC-SA-03</div><div class="tc-pills"><span class="sp sp-video">Video fr25</span><span class="sp sp-prd">PRD CI-3</span></div></div>
+        <div class="tc-title">"Add manually" is the top option in the search results dropdown (not just in No Results state)</div>
+        <div class="tc-badges"><span class="badge b-p0">P0</span><span class="badge b-det">Deterministic</span><span class="badge b-new">NEW</span></div>
+      </div><div class="tc-chev">▼</div></div>
+      <div class="tc-body"><div class="tc-body-L">
+        <div class="tc-fix-note"><span>⚠</span><span>v1 showed "Cite manually" only in No Results state. Video fr25 clearly shows "+ Add manually" as the FIRST item in the dropdown even when results exist below it.</span></div>
+        <div class="tc-sec"><div class="tc-lbl">Steps</div><div class="tc-steps"><ol><li>Type "Transient xrays" in search bar.</li><li>Observe dropdown structure while results load.</li></ol></div></div>
+      </div><div class="tc-body-R">
+        <div class="tc-sec"><div class="tc-lbl">Expected Result</div><div class="tc-exp">"+ Add manually" appears as the first item in the dropdown, above all search results. Results list appears below it. Clicking "Add manually" opens the manual citation form regardless of whether results are present.</div></div>
+        <div class="tc-video">Video fr25: Dropdown shows "+ Add manually" as first row, followed by 5+ search results.</div>
+      </div></div>
+    </div>
+
+    <div class="tc-card" data-p="p0" data-t="det" data-new="false" data-fix="false" data-page="search" data-kw="URL paste http https valid URL citation generates webpage metadata">
+      <div class="tc-head"><div class="tc-bar lb-p0"></div><div class="tc-inner" onclick="tgl(this)">
+        <div class="tc-id-col"><div class="tc-id">TC-SA-04</div><div class="tc-pills"><span class="sp sp-prd">PRD CI-2</span></div></div>
+        <div class="tc-title">Pasting a valid http/https URL generates a citation from metadata extraction pipeline</div>
+        <div class="tc-badges"><span class="badge b-p0">P0</span><span class="badge b-det">Deterministic</span></div>
+      </div><div class="tc-chev">▼</div></div>
+      <div class="tc-body"><div class="tc-body-L">
+        <div class="tc-prd">PRD CI-2: URL accepted. Calls APIs + passes back probable metadata. Citation auto-added to References list. Fields needing review flagged.</div>
+        <div class="tc-sec"><div class="tc-lbl">Steps</div><div class="tc-steps"><ol><li>Paste a full URL (e.g. https://openstax.org/books/…) into search field.</li><li>Submit/confirm.</li></ol></div></div>
+      </div><div class="tc-body-R">
+        <div class="tc-sec"><div class="tc-lbl">Expected Result</div><div class="tc-exp">Citation generated with site name, title, URL, access date. Video fr10/15: "Astronomy 2e. OpenStax. https://openstax.org/books/astronomy-2e/pages/preface" — Fraknoi A., Morrison D., & Wolff S. C. (2022) shown in panel. Added without going through review queue (it already has reliable URL data).</div></div>
+      </div></div>
+    </div>
+
+    <div class="tc-card" data-p="p1" data-t="det" data-new="false" data-fix="false" data-page="search" data-kw="manual entry cite manually source type selector five primary More types CSL">
+      <div class="tc-head"><div class="tc-bar lb-p1"></div><div class="tc-inner" onclick="tgl(this)">
+        <div class="tc-id-col"><div class="tc-id">TC-SA-05</div><div class="tc-pills"><span class="sp sp-prd">PRD ST-1, CI-5</span></div></div>
+        <div class="tc-title">Manual citation form: 5 primary source types + "More types"; fields change per type non-destructively</div>
+        <div class="tc-badges"><span class="badge b-p1">P1</span><span class="badge b-det">Deterministic</span></div>
+      </div><div class="tc-chev">▼</div></div>
+      <div class="tc-body"><div class="tc-body-L">
+        <div class="tc-prd">PRD ST-1: 5 types via pill/tab selector: Journal Article, Book/Collection, Webpage, News Article, Report. Switching non-destructive for shared fields (Title, Author, Year preserved). "More types" for additional CSL types.</div>
+        <div class="tc-sec"><div class="tc-lbl">Steps</div><div class="tc-steps"><ol><li>Open "Cite manually". Default is Journal Article.</li><li>Type a Title. Switch to Book. Verify Title is preserved.</li><li>Open "More types". Find "Thesis".</li></ol></div></div>
+      </div><div class="tc-body-R">
+        <div class="tc-sec"><div class="tc-lbl">Expected Result</div><div class="tc-exp">Default: Journal Article. Switching to Book: Title preserved, author preserved, year preserved. Fields inapplicable to Book are hidden (not just disabled). "More types" option exposes full CSL item type list. Secondary types share four field groupings (per PRD Appendix E).</div></div>
+      </div></div>
+    </div>
+
+    <div class="tc-card" data-p="p1" data-t="det" data-new="true" data-fix="false" data-page="search" data-kw="multiple authors structured input First name Last name Add another author organization">
+      <div class="tc-head"><div class="tc-bar lb-p1"></div><div class="tc-inner" onclick="tgl(this)">
+        <div class="tc-id-col"><div class="tc-id">TC-SA-06</div><div class="tc-pills"><span class="sp sp-prd">PRD ST-7</span></div></div>
+        <div class="tc-title">Author field: structured multi-row input with First/Last fields, × remove, + Add another author</div>
+        <div class="tc-badges"><span class="badge b-p1">P1</span><span class="badge b-det">Deterministic</span><span class="badge b-new">NEW</span></div>
+      </div><div class="tc-chev">▼</div></div>
+      <div class="tc-body"><div class="tc-body-L">
+        <div class="tc-prd">PRD ST-7: Each author row = First name/Organization + Last name + × remove. "+ Add another author" button. Organizational authors: first field = org name, last name left blank. Label: "Author / Organization".</div>
+        <div class="tc-sec"><div class="tc-lbl">Steps</div><div class="tc-steps"><ol><li>Open edit form. Add 3 authors via "+ Add another author".</li><li>Remove the 2nd author with ×.</li><li>Add an organizational author (only first field filled).</li></ol></div></div>
+      </div><div class="tc-body-R">
+        <div class="tc-sec"><div class="tc-lbl">Expected Result</div><div class="tc-exp">Each author row has First/Organization + Last name fields + × button. Clicking × removes that author's row only. "+ Add another author" adds a new blank row. Org author: only First field required, Last left blank — citation formats correctly (org name in author position).</div></div>
+      </div></div>
+    </div>
+
+    <div class="tc-card" data-p="p1" data-t="det" data-new="false" data-fix="false" data-page="search" data-kw="inline validation save Title missing Author missing red border error message required fields">
+      <div class="tc-head"><div class="tc-bar lb-p1"></div><div class="tc-inner" onclick="tgl(this)">
+        <div class="tc-id-col"><div class="tc-id">TC-SA-07</div><div class="tc-pills"><span class="sp sp-prd">PRD CF-3, CF-4</span></div></div>
+        <div class="tc-title">Inline validation on save: Title missing → red border + "Title missing."; Author missing (Journal/Book) → "Author or organization is missing."</div>
+        <div class="tc-badges"><span class="badge b-p1">P1</span><span class="badge b-det">Deterministic</span></div>
+      </div><div class="tc-chev">▼</div></div>
+      <div class="tc-body"><div class="tc-body-L">
+        <div class="tc-prd">PRD CF-3: Validation only on save attempt. CF-4: If valid → citation saved. If invalid → form stays open. Errors clear in real time once field becomes valid. Errors do NOT hide on focus loss.</div>
+        <div class="tc-sec"><div class="tc-lbl">Steps</div><div class="tc-steps"><ol><li>Open edit form for Journal Article. Clear Title. Click Save.</li><li>Observe error. Start typing in Title field.</li><li>Clear Author field. Click Save.</li></ol></div></div>
+      </div><div class="tc-body-R">
+        <div class="tc-sec"><div class="tc-lbl">Expected Result</div><div class="tc-exp">Title blank + Save: red border on Title field, error text: <code>"Title missing."</code> Form stays open. Typing in Title: error clears in real time (not on blur). Author blank (Journal Article) + Save: error text: <code>"Author or organization is missing."</code> Switching focus away does NOT hide errors.</div></div>
+      </div></div>
+    </div>
+
+    <div class="tc-card" data-p="p1" data-t="det" data-new="true" data-fix="false" data-page="search" data-kw="tooltip field label hover contextual explain what field means appears in citation">
+      <div class="tc-head"><div class="tc-bar lb-p1"></div><div class="tc-inner" onclick="tgl(this)">
+        <div class="tc-id-col"><div class="tc-id">TC-SA-08</div><div class="tc-pills"><span class="sp sp-prd">PRD ST-9</span></div></div>
+        <div class="tc-title">Hovering field labels in edit form reveals contextual tooltip explaining the field</div>
+        <div class="tc-badges"><span class="badge b-p1">P1</span><span class="badge b-det">Deterministic</span><span class="badge b-new">NEW</span></div>
+      </div><div class="tc-chev">▼</div></div>
+      <div class="tc-body"><div class="tc-body-L">
+        <div class="tc-prd">PRD ST-9: Hovering field label → tooltip explaining what field is and how it appears in a citation. Available for all fields. Does not obscure input.</div>
+        <div class="tc-sec"><div class="tc-lbl">Steps</div><div class="tc-steps"><ol><li>Open citation edit form.</li><li>Hover the "DOI" label, then the "Volume" label, then "Access date" label.</li></ol></div></div>
+      </div><div class="tc-body-R">
+        <div class="tc-sec"><div class="tc-lbl">Expected Result</div><div class="tc-exp">Tooltip appears on hover for each field label. Tooltip text explains: what the field is (e.g. "DOI: Digital Object Identifier — a persistent link to the article") and how it appears in the citation. Tooltip does not overlap/obscure the input field itself.</div></div>
+      </div></div>
+    </div>
+
+    <div class="tc-card" data-p="p2" data-t="det" data-new="true" data-fix="false" data-page="search" data-kw="failed file X files weren't processed collapsible error list reason per file">
+      <div class="tc-head"><div class="tc-bar lb-p2"></div><div class="tc-inner" onclick="tgl(this)">
+        <div class="tc-id-col"><div class="tc-id">TC-SA-09</div><div class="tc-pills"><span class="sp sp-prd">PRD CI-1</span></div></div>
+        <div class="tc-title">Files that fail processing appear in collapsible "X files weren't processed" error list</div>
+        <div class="tc-badges"><span class="badge b-p2">P2</span><span class="badge b-det">Deterministic</span><span class="badge b-new">NEW</span></div>
+      </div><div class="tc-chev">▼</div></div>
+      <div class="tc-body"><div class="tc-body-L">
+        <div class="tc-prd">PRD CI-1: "If a file cannot be processed, it appears in a collapsible 'X files weren't processed' error list with an optional reason per file."</div>
+        <div class="tc-sec"><div class="tc-lbl">Steps</div><div class="tc-steps"><ol><li>Upload 3 files: 1 valid PDF, 1 corrupted PDF, 1 unsupported type (e.g. .mp3).</li><li>Observe the error reporting.</li></ol></div></div>
+      </div><div class="tc-body-R">
+        <div class="tc-sec"><div class="tc-lbl">Expected Result</div><div class="tc-exp">Valid PDF: proceeds to generation. Corrupted PDF + .mp3: appear in a collapsible "2 files weren't processed" section. Expanding shows each filename + optional reason. The successful file's citation generation is not blocked by the failures.</div></div>
+      </div></div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ═══════════════ COPY & EXPORT ═══════════════ -->
+<div class="wiki-page" id="page-export">
+  <div class="page-hdr">
+    <div class="breadcrumb"><a onclick="showPage('overview')">Wiki</a> › Copy & Export</div>
+    <h1 class="page-h1">📤 Copy & Export</h1>
+    <div class="page-meta"><div class="meta-chip">7 cases</div><span class="sp sp-prd">PRD</span><span class="sp sp-video">Video</span></div>
+  </div>
+  <div class="filter-bar"><span class="fl">Filter:</span>
+    <button class="fb active" onclick="fp('export','all',this)">All <span class="fbc">7</span></button>
+    <button class="fb fp0" onclick="fp('export','p0',this)">P0 <span class="fbc">4</span></button>
+    <button class="fb fp1" onclick="fp('export','p1',this)">P1 <span class="fbc">3</span></button>
+    <button class="fb fnew" onclick="fp('export','new',this)">NEW <span class="fbc">5</span></button>
+    <button class="fb ffix" onclick="fp('export','fix',this)">CORRECTED <span class="fbc">1</span></button>
+  </div>
+  <div class="tc-list" id="tclist-export">
+
+    <div class="tc-card" data-p="p0" data-t="det" data-new="false" data-fix="true" data-page="export" data-kw="copy all copy selected label change excluded citations EX-3">
+      <div class="tc-head"><div class="tc-bar lb-p0"></div><div class="tc-inner" onclick="tgl(this)">
+        <div class="tc-id-col"><div class="tc-id">TC-EX-01</div><div class="tc-pills"><span class="sp sp-prd">PRD EX-2, EX-3</span></div></div>
+        <div class="tc-title">"Copy all" changes to "Copy selected" when at least one citation is excluded</div>
+        <div class="tc-badges"><span class="badge b-p0">P0</span><span class="badge b-det">Deterministic</span><span class="badge b-fix">CORRECTED</span></div>
+      </div><div class="tc-chev">▼</div></div>
+      <div class="tc-body"><div class="tc-body-L">
+        <div class="tc-prd">PRD EX-3: All included → "Copy all". At least one excluded → "Copy selected". Operation always copies only citations with included=true.</div>
+        <div class="tc-sec"><div class="tc-lbl">Steps</div><div class="tc-steps"><ol><li>All citations included: observe button label in footer.</li><li>Uncheck one citation. Observe label change.</li><li>Click "Copy selected". Paste. Confirm excluded citation absent.</li></ol></div></div>
+      </div><div class="tc-body-R">
+        <div class="tc-sec"><div class="tc-lbl">Expected Result</div><div class="tc-exp">All included: footer button reads "Copy all". After unchecking one: button immediately reads "Copy selected". Pasted text contains only included citations — excluded ones are absent. "Copied" toast appears for 2 seconds.</div></div>
+      </div></div>
+    </div>
+
+    <div class="tc-card" data-p="p0" data-t="det" data-new="true" data-fix="false" data-page="export" data-kw="export download Citations.pdf browser file download PDF Word Text format">
+      <div class="tc-head"><div class="tc-bar lb-p0"></div><div class="tc-inner" onclick="tgl(this)">
+        <div class="tc-id-col"><div class="tc-id">TC-EX-02</div><div class="tc-pills"><span class="sp sp-prd">PRD EX-5</span><span class="sp sp-video">Video fr35</span></div></div>
+        <div class="tc-title">Export triggers browser file download (Citations.pdf observed in video); PRD specifies PDF, Word, Text formats</div>
+        <div class="tc-badges"><span class="badge b-p0">P0</span><span class="badge b-det">Deterministic</span><span class="badge b-new">NEW</span></div>
+      </div><div class="tc-chev">▼</div></div>
+      <div class="tc-body"><div class="tc-body-L">
+        <div class="tc-prd">PRD EX-5: Export dropdown: PDF, Word (.docx), Text. Selecting triggers file generation and download.</div>
+        <div class="tc-fix-note"><span>⚠</span><span>Video fr35 shows "Citations.pdf 100 KB – Done" in Chrome download bar with a PDF icon. PRD specifies 3 formats. Confirm with eng whether PDF is the default or whether the format selector was skipped in the video demo.</span></div>
+        <div class="tc-sec"><div class="tc-lbl">Steps</div><div class="tc-steps"><ol><li>Click export button in Citations panel.</li><li>Select PDF from format dropdown.</li><li>Select Word (.docx).</li><li>Select Text.</li></ol></div></div>
+      </div><div class="tc-body-R">
+        <div class="tc-sec"><div class="tc-lbl">Expected Result</div><div class="tc-exp">For each format: file generation occurs, browser download initiates. PDF: "Citations.pdf" contains reference list formatted in current style. Word: "Citations.docx" with formatted text. Text: "Citations.txt" with plain-text reference list. Only included citations exported. File naming consistent with selected style heading.</div></div>
+        <div class="tc-video">Video fr35: Browser download bar shows "Citations.pdf 100 KB – Done". Screen annotation: "All citations are downloaded as a ZIP file" — may indicate PDF is bundled in ZIP.</div>
+      </div></div>
+    </div>
+
+    <div class="tc-card" data-p="p0" data-t="det" data-new="true" data-fix="false" data-page="export" data-kw="Add to Note creates new note reference list heading title style body citations">
+      <div class="tc-head"><div class="tc-bar lb-p0"></div><div class="tc-inner" onclick="tgl(this)">
+        <div class="tc-id-col"><div class="tc-id">TC-EX-03</div><div class="tc-pills"><span class="sp sp-prd">PRD EX-4</span></div></div>
+        <div class="tc-title">"Add to Note" creates a new Note with reference list heading as title and all included citations in body</div>
+        <div class="tc-badges"><span class="badge b-p0">P0</span><span class="badge b-det">Deterministic</span><span class="badge b-new">NEW</span></div>
+      </div><div class="tc-chev">▼</div></div>
+      <div class="tc-body"><div class="tc-body-L">
+        <div class="tc-prd">PRD EX-4: Creates new Note. Title = reference list heading for selected style (e.g. "References", "Works Cited", "Bibliography"). Body = all included citations in selected style. App navigates to new note. Multiple notes can be created for different styles.</div>
+        <div class="tc-sec"><div class="tc-lbl">Steps</div><div class="tc-steps"><ol><li>APA selected. Click "Add to Note".</li><li>Observe created note title and body.</li><li>Switch to MLA. Click "Add to Note" again.</li></ol></div></div>
+      </div><div class="tc-body-R">
+        <div class="tc-sec"><div class="tc-lbl">Expected Result</div><div class="tc-exp">APA note: title "References", body has all included APA-formatted citations. App navigates to the new note. MLA note: title "Works Cited", body has MLA-formatted citations. Two separate notes created — each independent. Only included citations appear in the note.</div></div>
+      </div></div>
+    </div>
+
+    <div class="tc-card" data-p="p0" data-t="det" data-new="true" data-fix="false" data-page="export" data-kw="in-text citation modal parenthetical narrative locator page paragraph section copy">
+      <div class="tc-head"><div class="tc-bar lb-p0"></div><div class="tc-inner" onclick="tgl(this)">
+        <div class="tc-id-col"><div class="tc-id">TC-EX-04</div><div class="tc-pills"><span class="sp sp-prd">PRD IT-1, IT-2, IT-3</span></div></div>
+        <div class="tc-title">In-text citation modal shows parenthetical + narrative forms; locator (page/paragraph/section) appends correctly</div>
+        <div class="tc-badges"><span class="badge b-p0">P0</span><span class="badge b-det">Deterministic</span><span class="badge b-new">NEW</span></div>
+      </div><div class="tc-chev">▼</div></div>
+      <div class="tc-body"><div class="tc-body-L">
+        <div class="tc-prd">PRD IT-1: APA (Family, Year), MLA (Family), Chicago AD (Family Year), IEEE [N], AMA (Family, Year). IT-2: Narrative: APA Family (Year), MLA Family, etc. IT-3: Locator types per source type. APA with page 42: (Family, Year, p. 42).</div>
+        <div class="tc-sec"><div class="tc-lbl">Steps</div><div class="tc-steps"><ol><li>APA style. Click "In-text citation" on a citation with Author=Smith, Year=2023.</li><li>Verify parenthetical and narrative fields.</li><li>Add page locator "42". Verify format.</li><li>Switch to MLA. Verify format change.</li></ol></div></div>
+      </div><div class="tc-body-R">
+        <div class="tc-sec"><div class="tc-lbl">Expected Result</div><div class="tc-exp">APA parenthetical: <code>(Smith, 2023)</code>. APA narrative: <code>Smith (2023)</code>. Adding locator 42 → parenthetical: <code>(Smith, 2023, p. 42)</code>. MLA: <code>(Smith)</code> / <code>(Smith 42)</code> with locator. Modal includes info icon explaining parenthetical vs narrative. Modal closes on Escape, outside click, or × button.</div></div>
+      </div></div>
+    </div>
+
+    <div class="tc-card" data-p="p1" data-t="det" data-new="true" data-fix="false" data-page="export" data-kw="IEEE citation N placeholder note order of appearance finalize">
+      <div class="tc-head"><div class="tc-bar lb-p1"></div><div class="tc-inner" onclick="tgl(this)">
+        <div class="tc-id-col"><div class="tc-id">TC-EX-05</div><div class="tc-pills"><span class="sp sp-prd">PRD IT-1</span></div></div>
+        <div class="tc-title">IEEE in-text citation shows [N] as placeholder with note about finalizing order</div>
+        <div class="tc-badges"><span class="badge b-p1">P1</span><span class="badge b-det">Deterministic</span><span class="badge b-new">NEW</span></div>
+      </div><div class="tc-chev">▼</div></div>
+      <div class="tc-body"><div class="tc-body-L">
+        <div class="tc-prd">PRD IT-1: IEEE shows [N] as placeholder. Note: "IEEE citation numbers follow the order of first appearance in your paper — update this number when you finalize."</div>
+        <div class="tc-sec"><div class="tc-lbl">Steps</div><div class="tc-steps"><ol><li>Set style to IEEE. Click "In-text citation" on any citation.</li></ol></div></div>
+      </div><div class="tc-body-R">
+        <div class="tc-sec"><div class="tc-lbl">Expected Result</div><div class="tc-exp">In-text modal shows <code>[N]</code> as the citation form. Below it, the note reads (exactly): "IEEE citation numbers follow the order of first appearance in your paper — update this number when you finalize." No parenthetical or narrative forms shown for IEEE.</div></div>
+      </div></div>
+    </div>
+
+    <div class="tc-card" data-p="p1" data-t="det" data-new="true" data-fix="false" data-page="export" data-kw="copy all citations plain text double newline separator">
+      <div class="tc-head"><div class="tc-bar lb-p1"></div><div class="tc-inner" onclick="tgl(this)">
+        <div class="tc-id-col"><div class="tc-id">TC-EX-06</div><div class="tc-pills"><span class="sp sp-prd">PRD EX-2</span></div></div>
+        <div class="tc-title">"Copy all" copies included citations as plain text, separated by double newline</div>
+        <div class="tc-badges"><span class="badge b-p1">P1</span><span class="badge b-det">Deterministic</span><span class="badge b-new">NEW</span></div>
+      </div><div class="tc-chev">▼</div></div>
+      <div class="tc-body"><div class="tc-body-L">
+        <div class="tc-prd">PRD EX-2: "Copy all" in footer. Copies all included citations as plain text, each separated by a double newline. "Copied" toast 2 seconds.</div>
+        <div class="tc-sec"><div class="tc-lbl">Steps</div><div class="tc-steps"><ol><li>Have 3 included citations. Click "Copy all".</li><li>Paste into a text editor.</li><li>Check separator between citations.</li></ol></div></div>
+      </div><div class="tc-body-R">
+        <div class="tc-sec"><div class="tc-lbl">Expected Result</div><div class="tc-exp">3 citations pasted as plain text. Between each citation: exactly one blank line (double newline = \n\n). No HTML. "Copied" toast shown for ~2 seconds. Excluded citations not present.</div></div>
+      </div></div>
+    </div>
+
+    <div class="tc-card" data-p="p1" data-t="jud" data-new="true" data-fix="false" data-page="export" data-kw="reference list heading updates style Works Cited References Bibliography">
+      <div class="tc-head"><div class="tc-bar lb-p1"></div><div class="tc-inner" onclick="tgl(this)">
+        <div class="tc-id-col"><div class="tc-id">TC-EX-07</div><div class="tc-pills"><span class="sp sp-prd">PRD CS-1</span></div></div>
+        <div class="tc-title">Reference list heading updates to match selected style (References / Works Cited / Bibliography)</div>
+        <div class="tc-badges"><span class="badge b-p1">P1</span><span class="badge b-det">Deterministic</span><span class="badge b-new">NEW</span></div>
+      </div><div class="tc-chev">▼</div></div>
+      <div class="tc-body"><div class="tc-body-L">
+        <div class="tc-prd">PRD CS-1: "The reference list heading updates to match the selected style."</div>
+        <div class="tc-sec"><div class="tc-lbl">Steps</div><div class="tc-steps"><ol><li>Select APA. Note heading.</li><li>Switch to MLA. Note heading.</li><li>Switch to Chicago NB. Note heading.</li></ol></div></div>
+      </div><div class="tc-body-R">
+        <div class="tc-sec"><div class="tc-lbl">Expected Result</div><div class="tc-exp">APA: heading = "References". MLA: heading = "Works Cited". Chicago NB: heading = "Bibliography". Chicago AD: "References". IEEE: "References". AMA: "References". Heading updates immediately on style change, not just on export.</div></div>
+      </div></div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ═══════════════ EMPTY STATES ═══════════════ -->
+<div class="wiki-page" id="page-empty">
+  <div class="page-hdr">
+    <div class="breadcrumb"><a onclick="showPage('overview')">Wiki</a> › Empty States</div>
+    <h1 class="page-h1">◻ Entry States & Frictionless</h1>
+    <div class="page-meta"><div class="meta-chip">6 cases</div><span class="sp sp-prd">PRD UE-1 through UE-4</span></div>
+  </div>
+  <div class="filter-bar"><span class="fl">Filter:</span>
+    <button class="fb active" onclick="fp('empty','all',this)">All <span class="fbc">6</span></button>
+    <button class="fb fp0" onclick="fp('empty','p0',this)">P0 <span class="fbc">3</span></button>
+    <button class="fb fp1" onclick="fp('empty','p1',this)">P1 <span class="fbc">2</span></button>
+    <button class="fb fp2" onclick="fp('empty','p2',this)">P2 <span class="fbc">1</span></button>
+    <button class="fb fnew" onclick="fp('empty','new',this)">NEW <span class="fbc">3</span></button>
+  </div>
+  <div class="tc-list" id="tclist-empty">
+
+    <div class="tc-card" data-p="p0" data-t="det" data-new="false" data-fix="false" data-page="empty" data-kw="hero panel no files no citations drag drop file upload zone search bar cite manually style selector">
+      <div class="tc-head"><div class="tc-bar lb-p0"></div><div class="tc-inner" onclick="tgl(this)">
+        <div class="tc-id-col"><div class="tc-id">TC-ES-01</div><div class="tc-pills"><span class="sp sp-prd">PRD UE-1</span></div></div>
+        <div class="tc-title">New user (no files, no citations): hero panel with upload zone, search bar, style selector, "Cite manually"</div>
+        <div class="tc-badges"><span class="badge b-p0">P0</span><span class="badge b-det">Deterministic</span></div>
+      </div><div class="tc-chev">▼</div></div>
+      <div class="tc-body"><div class="tc-body-L">
+        <div class="tc-prd">PRD UE-1 AC: Hero panel displayed when no files AND no citations. Contains: drag-and-drop upload zone, source/URL search bar, citation style selector, "Cite manually" link. Hero replaced once first file or citation added.</div>
+        <div class="tc-sec"><div class="tc-lbl">Steps</div><div class="tc-steps"><ol><li>Open Citations panel in a space with zero sources and zero citations.</li></ol></div></div>
+      </div><div class="tc-body-R">
+        <div class="tc-sec"><div class="tc-lbl">Expected Result</div><div class="tc-exp">Hero panel visible with all 4 elements: (1) drag-and-drop zone, (2) URL/ISBN/keyword search bar, (3) citation style selector, (4) "Cite manually" link/button. After uploading first file OR adding first citation: hero is replaced by the input area + reference list view.</div></div>
+      </div></div>
+    </div>
+
+    <div class="tc-card" data-p="p0" data-t="det" data-new="true" data-fix="false" data-page="empty" data-kw="returning user has sources no citations auto generation triggers navigate citations panel">
+      <div class="tc-head"><div class="tc-bar lb-p0"></div><div class="tc-inner" onclick="tgl(this)">
+        <div class="tc-id-col"><div class="tc-id">TC-ES-02</div><div class="tc-pills"><span class="sp sp-prd">PRD UE-2</span></div></div>
+        <div class="tc-title">Returning user with sources but no citations: auto-generation triggers on panel navigation</div>
+        <div class="tc-badges"><span class="badge b-p0">P0</span><span class="badge b-det">Deterministic</span><span class="badge b-new">NEW</span></div>
+      </div><div class="tc-chev">▼</div></div>
+      <div class="tc-body"><div class="tc-body-L">
+        <div class="tc-prd">PRD UE-2 AC: Extraction triggered on ALL un-cited documents once user navigates to Citations Panel. Non-academic sources filtered out (P1). Pipeline runs per-document, asynchronously.</div>
+        <div class="tc-sec"><div class="tc-lbl">Steps</div><div class="tc-steps"><ol><li>Space has 3 PDFs, 0 citations. Open Citations panel.</li></ol></div></div>
+      </div><div class="tc-body-R">
+        <div class="tc-sec"><div class="tc-lbl">Expected Result</div><div class="tc-exp">Review Citations screen opens automatically. Loading state shown (video fr7: "5 citations processing"). Citations stream in as each source resolves. Non-academic sources silently excluded. Student sees only academic source citations in the review queue.</div></div>
+      </div></div>
+    </div>
+
+    <div class="tc-card" data-p="p0" data-t="det" data-new="true" data-fix="false" data-page="empty" data-kw="established user citations already generated full list available immediately edit add new">
+      <div class="tc-head"><div class="tc-bar lb-p0"></div><div class="tc-inner" onclick="tgl(this)">
+        <div class="tc-id-col"><div class="tc-id">TC-ES-03</div><div class="tc-pills"><span class="sp sp-prd">PRD UE-4</span></div></div>
+        <div class="tc-title">Established user (all sources cited): full citation list available immediately on panel open</div>
+        <div class="tc-badges"><span class="badge b-p0">P0</span><span class="badge b-det">Deterministic</span><span class="badge b-new">NEW</span></div>
+      </div><div class="tc-chev">▼</div></div>
+      <div class="tc-body"><div class="tc-body-L">
+        <div class="tc-prd">PRD UE-4 AC: Citations tab shows all previously created citations in selected style. Citation input area remains accessible. User can edit, exclude, delete, or add new citations immediately.</div>
+        <div class="tc-sec"><div class="tc-lbl">Steps</div><div class="tc-steps"><ol><li>Space with 5 sources, all already cited. Open Citations panel.</li></ol></div></div>
+      </div><div class="tc-body-R">
+        <div class="tc-sec"><div class="tc-lbl">Expected Result</div><div class="tc-exp">No loading delay, no review screen — full citation list immediately visible. Input area (drag-drop + search) accessible at top. Each citation row shows all actions (copy, in-text, overflow). No auto-generation triggered (all sources already have citations).</div></div>
+      </div></div>
+    </div>
+
+    <div class="tc-card" data-p="p1" data-t="det" data-new="false" data-fix="false" data-page="empty" data-kw="context aware CTA sources before tools tools before sources no sources no tools empty">
+      <div class="tc-head"><div class="tc-bar lb-p1"></div><div class="tc-inner" onclick="tgl(this)">
+        <div class="tc-id-col"><div class="tc-id">TC-ES-04</div><div class="tc-pills"><span class="sp sp-figma">Figma</span></div></div>
+        <div class="tc-title">Empty state CTA adapts: Sources-before-tools / Tools-before-sources / No sources or tools</div>
+        <div class="tc-badges"><span class="badge b-p1">P1</span><span class="badge b-det">Deterministic</span></div>
+      </div><div class="tc-chev">▼</div></div>
+      <div class="tc-body"><div class="tc-body-L">
+        <div class="tc-sec"><div class="tc-lbl">Steps</div><div class="tc-steps"><ol><li>Scenario A: Sources exist, no citations. Open panel.</li><li>Scenario B: Used other tools, no sources. Open panel.</li><li>Scenario C: Fresh space, nothing. Open panel.</li></ol></div></div>
+      </div><div class="tc-body-R">
+        <div class="tc-sec"><div class="tc-lbl">Expected Result</div><div class="tc-exp">A: Auto-generation triggers (UE-2). B: Hero panel shown with primary CTA directing to add sources. C: Hero panel (UE-1) with all 4 elements. All 3 variants are visually distinct and action-oriented, not error states.</div></div>
+      </div></div>
+    </div>
+
+    <div class="tc-card" data-p="p1" data-t="jud" data-new="false" data-fix="false" data-page="empty" data-kw="empty state copy instructive action oriented not error tone clarity">
+      <div class="tc-head"><div class="tc-bar lb-p1"></div><div class="tc-inner" onclick="tgl(this)">
+        <div class="tc-id-col"><div class="tc-id">TC-ES-05</div><div class="tc-pills"><span class="sp sp-figma">Figma</span></div></div>
+        <div class="tc-title">All empty state strings are instructive, action-oriented — none read as error messages</div>
+        <div class="tc-badges"><span class="badge b-p1">P1</span><span class="badge b-jud">Judgment</span></div>
+      </div><div class="tc-chev">▼</div></div>
+      <div class="tc-body"><div class="tc-body-L">
+        <div class="tc-sec"><div class="tc-lbl">Steps</div><div class="tc-steps"><ol><li>Review all empty state variants: hero panel, Review Citations empty, Add Citation No Results.</li></ol></div></div>
+      </div><div class="tc-body-R">
+        <div class="tc-sec"><div class="tc-lbl">Expected Result</div><div class="tc-exp">All copy is informative and forward-pointing. Headings are not prefixed with "Error" or "Failed". Each state has at least one actionable CTA. Tone matches the frictionless / helpful brand voice.</div></div>
+        <div class="tc-note">Judgment — tone/clarity/actionability assessed on rubric. Failures → UX writer review.</div>
+      </div></div>
+    </div>
+
+    <div class="tc-card" data-p="p2" data-t="det" data-new="false" data-fix="false" data-page="empty" data-kw="create manually always visible empty state create from existing removed June 24">
+      <div class="tc-head"><div class="tc-bar lb-p2"></div><div class="tc-inner" onclick="tgl(this)">
+        <div class="tc-id-col"><div class="tc-id">TC-ES-06</div><div class="tc-pills"><span class="sp sp-figma">Figma</span></div></div>
+        <div class="tc-title">"Cite manually" CTA always present; "Create from existing sources" CTA is absent (removed Jun 24)</div>
+        <div class="tc-badges"><span class="badge b-p2">P2</span><span class="badge b-det">Deterministic</span></div>
+      </div><div class="tc-chev">▼</div></div>
+      <div class="tc-body"><div class="tc-body-L">
+        <div class="tc-sec"><div class="tc-lbl">Steps</div><div class="tc-steps"><ol><li>Open Citations panel in any empty/hero state.</li><li>Look for "Cite manually" and "Create from existing sources" CTAs.</li></ol></div></div>
+      </div><div class="tc-body-R">
+        <div class="tc-sec"><div class="tc-lbl">Expected Result</div><div class="tc-exp">"Cite manually" is present and accessible. "Create from existing sources" is NOT shown anywhere (removed Jun 24 per Figma changelog). Confirmed by PRD CI-5: "Cite manually" is always visible in the input area.</div></div>
+      </div></div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ═══════════════ ERROR HANDLING ═══════════════ -->
+<div class="wiki-page" id="page-errors">
+  <div class="page-hdr">
+    <div class="breadcrumb"><a onclick="showPage('overview')">Wiki</a> › Error Handling</div>
+    <h1 class="page-h1">⚠ Error Handling & Edge Cases</h1>
+    <div class="page-meta"><div class="meta-chip">8 cases</div><span class="sp sp-prd">PRD</span><span class="sp sp-video">Video</span></div>
+  </div>
+  <div class="filter-bar"><span class="fl">Filter:</span>
+    <button class="fb active" onclick="fp('errors','all',this)">All <span class="fbc">8</span></button>
+    <button class="fb fp0" onclick="fp('errors','p0',this)">P0 <span class="fbc">5</span></button>
+    <button class="fb fp1" onclick="fp('errors','p1',this)">P1 <span class="fbc">2</span></button>
+    <button class="fb fp2" onclick="fp('errors','p2',this)">P2 <span class="fbc">1</span></button>
+    <button class="fb fnew" onclick="fp('errors','new',this)">NEW <span class="fbc">6</span></button>
+  </div>
+  <div class="tc-list" id="tclist-errors">
+
+    <div class="tc-card" data-p="p0" data-t="det" data-new="true" data-fix="false" data-page="errors" data-kw="file over 100MB rejected error size limit upload">
+      <div class="tc-head"><div class="tc-bar lb-p0"></div><div class="tc-inner" onclick="tgl(this)">
+        <div class="tc-id-col"><div class="tc-id">TC-ER-01</div><div class="tc-pills"><span class="sp sp-video">Video fr1</span><span class="sp sp-prd">PRD CI-1</span></div></div>
+        <div class="tc-title">Files over 100MB are rejected with a clear error; valid files in same batch proceed</div>
+        <div class="tc-badges"><span class="badge b-p0">P0</span><span class="badge b-det">Deterministic</span><span class="badge b-new">NEW</span></div>
+      </div><div class="tc-chev">▼</div></div>
+      <div class="tc-body"><div class="tc-body-L">
+        <div class="tc-sec"><div class="tc-lbl">Steps</div><div class="tc-steps"><ol><li>Upload a 150MB PDF alongside a valid 2MB PDF.</li></ol></div></div>
+      </div><div class="tc-body-R">
+        <div class="tc-sec"><div class="tc-lbl">Expected Result</div><div class="tc-exp">150MB file: rejected, appears in "X files weren't processed" collapsible list with reason (e.g. "File exceeds 100MB limit"). 2MB file: proceeds to generation normally. No blocking of valid files by oversized ones.</div></div>
+      </div></div>
+    </div>
+
+    <div class="tc-card" data-p="p0" data-t="det" data-new="true" data-fix="false" data-page="errors" data-kw="unsupported file type rejected mp3 exe unknown format error">
+      <div class="tc-head"><div class="tc-bar lb-p0"></div><div class="tc-inner" onclick="tgl(this)">
+        <div class="tc-id-col"><div class="tc-id">TC-ER-02</div><div class="tc-pills"><span class="sp sp-prd">PRD CI-1</span></div></div>
+        <div class="tc-title">Unsupported file types rejected and appear in "X files weren't processed" list</div>
+        <div class="tc-badges"><span class="badge b-p0">P0</span><span class="badge b-det">Deterministic</span><span class="badge b-new">NEW</span></div>
+      </div><div class="tc-chev">▼</div></div>
+      <div class="tc-body"><div class="tc-body-L">
+        <div class="tc-sec"><div class="tc-lbl">Steps</div><div class="tc-steps"><ol><li>Drag an .mp3 and a .exe onto the dropzone.</li></ol></div></div>
+      </div><div class="tc-body-R">
+        <div class="tc-sec"><div class="tc-lbl">Expected Result</div><div class="tc-exp">Both files appear in collapsible error list: "2 files weren't processed." Expanding shows filenames with reason "Unsupported file type." Accepted file types listed or linked. No broken/hung upload state.</div></div>
+      </div></div>
+    </div>
+
+    <div class="tc-card" data-p="p0" data-t="det" data-new="true" data-fix="false" data-page="errors" data-kw="invalid URL unreachable 404 malformed error inline validation">
+      <div class="tc-head"><div class="tc-bar lb-p0"></div><div class="tc-inner" onclick="tgl(this)">
+        <div class="tc-id-col"><div class="tc-id">TC-ER-03</div><div class="tc-pills"><span class="sp sp-prd">PRD CI-2</span></div></div>
+        <div class="tc-title">Invalid or unreachable URL shows specific inline error before citation is created</div>
+        <div class="tc-badges"><span class="badge b-p0">P0</span><span class="badge b-det">Deterministic</span><span class="badge b-new">NEW</span></div>
+      </div><div class="tc-chev">▼</div></div>
+      <div class="tc-body"><div class="tc-body-L">
+        <div class="tc-sec"><div class="tc-lbl">Steps</div><div class="tc-steps"><ol><li>Paste "notaurl" into URL field. Submit.</li><li>Paste "https://example.com/nonexistent-page-404". Submit.</li></ol></div></div>
+      </div><div class="tc-body-R">
+        <div class="tc-sec"><div class="tc-lbl">Expected Result</div><div class="tc-exp">"notaurl": inline error "Invalid URL format" before any network call. "404 URL": error after attempt — "URL not found" or "Couldn't access this page." No citation created with a broken source. No indefinite loading spinner.</div></div>
+      </div></div>
+    </div>
+
+    <div class="tc-card" data-p="p0" data-t="det" data-new="false" data-fix="false" data-page="errors" data-kw="graceful failure incomplete citation missing required fields flag not blocked">
+      <div class="tc-head"><div class="tc-bar lb-p0"></div><div class="tc-inner" onclick="tgl(this)">
+        <div class="tc-id-col"><div class="tc-id">TC-ER-04</div><div class="tc-pills"><span class="sp sp-prd">PRD Ship Bar</span></div></div>
+        <div class="tc-title">Graceful failure: extraction shortfall shows flagged incomplete citation, not a crash or blank result</div>
+        <div class="tc-badges"><span class="badge b-p0">P0</span><span class="badge b-det">Deterministic</span></div>
+      </div><div class="tc-chev">▼</div></div>
+      <div class="tc-body"><div class="tc-body-L">
+        <div class="tc-prd">PRD Ship Bar: "Graceful failure is part of the bar. When extraction falls short, the system must surface what was found, flag what's missing with the Required indicator, and make manual completion fast."</div>
+        <div class="tc-sec"><div class="tc-lbl">Steps</div><div class="tc-steps"><ol><li>Upload a heavily scanned or degraded PDF with no DOI.</li><li>Observe extraction result in review.</li></ol></div></div>
+      </div><div class="tc-body-R">
+        <div class="tc-sec"><div class="tc-lbl">Expected Result</div><div class="tc-exp">Extraction produces a partial citation — whatever was found is pre-populated. Missing required fields flagged with Required indicator (orange border + "Add author" dashed prompt per CG-4). Student is NOT blocked from saving/adding incomplete citation. Review card shows the partial data, not an error screen.</div></div>
+      </div></div>
+    </div>
+
+    <div class="tc-card" data-p="p0" data-t="det" data-new="true" data-fix="false" data-page="errors" data-kw="network error citation generation fails retry CTA progress indicator stops">
+      <div class="tc-head"><div class="tc-bar lb-p0"></div><div class="tc-inner" onclick="tgl(this)">
+        <div class="tc-id-col"><div class="tc-id">TC-ER-05</div><div class="tc-pills"><span class="sp sp-prd">PRD</span></div></div>
+        <div class="tc-title">Network failure during generation shows recoverable error state with retry CTA</div>
+        <div class="tc-badges"><span class="badge b-p0">P0</span><span class="badge b-det">Deterministic</span><span class="badge b-new">NEW</span></div>
+      </div><div class="tc-chev">▼</div></div>
+      <div class="tc-body"><div class="tc-body-L">
+        <div class="tc-sec"><div class="tc-lbl">Steps</div><div class="tc-steps"><ol><li>Start citation generation (upload PDF).</li><li>Simulate network failure mid-generation (throttle to offline in devtools).</li></ol></div></div>
+      </div><div class="tc-body-R">
+        <div class="tc-sec"><div class="tc-lbl">Expected Result</div><div class="tc-exp">Generation stops cleanly — no indefinite spinner. Error state shown with retry CTA. Partial generation not silently saved as complete. Restoring network and clicking retry resumes generation from a recoverable state.</div></div>
+      </div></div>
+    </div>
+
+    <div class="tc-card" data-p="p1" data-t="det" data-new="true" data-fix="false" data-page="errors" data-kw="corrupted PDF password protected unreadable document processing error">
+      <div class="tc-head"><div class="tc-bar lb-p1"></div><div class="tc-inner" onclick="tgl(this)">
+        <div class="tc-id-col"><div class="tc-id">TC-ER-06</div><div class="tc-pills"><span class="sp sp-prd">PRD CI-1</span></div></div>
+        <div class="tc-title">Password-protected or corrupted PDF appears in error list, not silently skipped</div>
+        <div class="tc-badges"><span class="badge b-p1">P1</span><span class="badge b-det">Deterministic</span><span class="badge b-new">NEW</span></div>
+      </div><div class="tc-chev">▼</div></div>
+      <div class="tc-body"><div class="tc-body-L">
+        <div class="tc-sec"><div class="tc-lbl">Steps</div><div class="tc-steps"><ol><li>Upload a password-protected PDF.</li><li>Upload a corrupted/truncated PDF.</li></ol></div></div>
+      </div><div class="tc-body-R">
+        <div class="tc-sec"><div class="tc-lbl">Expected Result</div><div class="tc-exp">Both appear in "X files weren't processed" collapsible list. Password-protected: reason "This file is password protected." Corrupted: reason "This file couldn't be read." Neither causes a crash or blocks processing of other files in the same batch.</div></div>
+      </div></div>
+    </div>
+
+    <div class="tc-card" data-p="p1" data-t="jud" data-new="true" data-fix="false" data-page="errors" data-kw="generation timeout long running progress indicator still working">
+      <div class="tc-head"><div class="tc-bar lb-p1"></div><div class="tc-inner" onclick="tgl(this)">
+        <div class="tc-id-col"><div class="tc-id">TC-ER-07</div><div class="tc-pills"><span class="sp sp-prd">PRD</span></div></div>
+        <div class="tc-title">Long-running generation shows progress feedback, not a silent indefinite spinner</div>
+        <div class="tc-badges"><span class="badge b-p1">P1</span><span class="badge b-jud">Judgment</span><span class="badge b-new">NEW</span></div>
+      </div><div class="tc-chev">▼</div></div>
+      <div class="tc-body"><div class="tc-body-L">
+        <div class="tc-sec"><div class="tc-lbl">Steps</div><div class="tc-steps"><ol><li>Upload a very large, complex PDF.</li><li>Observe generation status past 10 seconds.</li></ol></div></div>
+      </div><div class="tc-body-R">
+        <div class="tc-sec"><div class="tc-lbl">Expected Result</div><div class="tc-exp">Loading state (video fr7: "Generating citation / Analyzing…") shown for the in-progress source. If timeout occurs, feedback is shown ("Still working…" or retry option). No silent spinner beyond reasonable threshold.</div></div>
+        <div class="tc-warn"><span>⚠</span><span>Clarification needed: What is the designed timeout threshold? PRD does not specify. Confirm with eng team before writing timeout assertion.</span></div>
+        <div class="tc-note">Judgment — "reasonable" threshold to be defined by product team.</div>
+      </div></div>
+    </div>
+
+    <div class="tc-card" data-p="p2" data-t="det" data-new="true" data-fix="false" data-page="errors" data-kw="search no results not found cite manually fallback">
+      <div class="tc-head"><div class="tc-bar lb-p2"></div><div class="tc-inner" onclick="tgl(this)">
+        <div class="tc-id-col"><div class="tc-id">TC-ER-08</div><div class="tc-pills"><span class="sp sp-prd">PRD CI-3</span></div></div>
+        <div class="tc-title">Search no-results state: "No results found." shown with "Cite manually" fallback</div>
+        <div class="tc-badges"><span class="badge b-p2">P2</span><span class="badge b-det">Deterministic</span></div>
+      </div><div class="tc-chev">▼</div></div>
+      <div class="tc-body"><div class="tc-body-L">
+        <div class="tc-prd">PRD CI-3: "If no results match, 'No results found.' is displayed. Student shown option to 'cite manually'."</div>
+        <div class="tc-sec"><div class="tc-lbl">Steps</div><div class="tc-steps"><ol><li>Enter a nonsense query in citation search field.</li></ol></div></div>
+      </div><div class="tc-body-R">
+        <div class="tc-sec"><div class="tc-lbl">Expected Result</div><div class="tc-exp">Dropdown shows text: <code>"No results found."</code> (exact string per PRD). "Cite manually" option still accessible — either in the dropdown or via the always-visible input area link. No indefinite spinner.</div></div>
+      </div></div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ═══════════════ ACCESSIBILITY ═══════════════ -->
+<div class="wiki-page" id="page-a11y">
+  <div class="page-hdr">
+    <div class="breadcrumb"><a onclick="showPage('overview')">Wiki</a> › Accessibility</div>
+    <h1 class="page-h1">♿ Keyboard & Focus</h1>
+    <div class="page-meta"><div class="meta-chip">5 cases</div><span class="sp sp-figma">Figma Stark bluelines</span></div>
+  </div>
+  <div class="filter-bar"><span class="fl">Filter:</span>
+    <button class="fb active" onclick="fp('a11y','all',this)">All <span class="fbc">5</span></button>
+    <button class="fb fp0" onclick="fp('a11y','p0',this)">P0 <span class="fbc">2</span></button>
+    <button class="fb fp1" onclick="fp('a11y','p1',this)">P1 <span class="fbc">3</span></button>
+  </div>
+  <div class="tc-list" id="tclist-a11y">
+    <div class="tc-card" data-p="p0" data-t="det" data-new="false" data-fix="false" data-page="a11y" data-kw="keyboard arrow keys citation list navigate tab within item add edit copy">
+      <div class="tc-head"><div class="tc-bar lb-p0"></div><div class="tc-inner" onclick="tgl(this)">
+        <div class="tc-id-col"><div class="tc-id">TC-A11-01</div><div class="tc-pills"><span class="sp sp-figma">Stark</span></div></div>
+        <div class="tc-title">Arrow keys navigate citation list; Tab accesses Add, Edit, Copy actions within focused item</div>
+        <div class="tc-badges"><span class="badge b-p0">P0</span><span class="badge b-det">Deterministic</span></div>
+      </div><div class="tc-chev">▼</div></div>
+      <div class="tc-body"><div class="tc-body-L">
+        <div class="tc-sec"><div class="tc-lbl">Steps</div><div class="tc-steps"><ol><li>Open Citations panel desktop. Tab focus into citation list.</li><li>Press ↑↓ arrow keys between items.</li><li>Tab within a focused citation row.</li></ol></div></div>
+      </div><div class="tc-body-R">
+        <div class="tc-sec"><div class="tc-lbl">Expected Result</div><div class="tc-exp">Arrow keys navigate between citation items (Stark blueline). Tab within item accesses Add, Edit, Copy in order. Focus ring visible on all interactive elements. All actions reachable without a mouse. "Repeat for all citation list items" (Stark annotation).</div></div>
+      </div></div>
+    </div>
+    <div class="tc-card" data-p="p0" data-t="det" data-new="false" data-fix="false" data-page="a11y" data-kw="keyboard source list arrow keys navigate sources tab cite manually">
+      <div class="tc-head"><div class="tc-bar lb-p0"></div><div class="tc-inner" onclick="tgl(this)">
+        <div class="tc-id-col"><div class="tc-id">TC-A11-02</div><div class="tc-pills"><span class="sp sp-figma">Stark</span></div></div>
+        <div class="tc-title">Source list navigable via arrow keys; Cite manually reachable via keyboard</div>
+        <div class="tc-badges"><span class="badge b-p0">P0</span><span class="badge b-det">Deterministic</span></div>
+      </div><div class="tc-chev">▼</div></div>
+      <div class="tc-body"><div class="tc-body-L">
+        <div class="tc-sec"><div class="tc-lbl">Steps</div><div class="tc-steps"><ol><li>Navigate into source list in Citations panel.</li><li>Use ↑↓ to move between sources.</li><li>Reach "Cite manually" option.</li></ol></div></div>
+      </div><div class="tc-body-R">
+        <div class="tc-sec"><div class="tc-lbl">Expected Result</div><div class="tc-exp">Arrow keys navigate source items. "Cite manually" is reachable via arrow-down or Tab. If implemented as a list item: arrow-down reaches it. If as a separate link: Tab reaches it (Stark note: "If NOT a list item, tab focus goes to the LINK").</div></div>
+        <div class="tc-warn"><span>⚠</span><span>Clarification needed: Is "Cite manually" a list item (arrow-nav) or a separate tab (Tab key)? Stark annotation notes both possibilities.</span></div>
+      </div></div>
+    </div>
+    <div class="tc-card" data-p="p1" data-t="jud" data-new="false" data-fix="false" data-page="a11y" data-kw="focus order logical reading order citations panel tab order WCAG">
+      <div class="tc-head"><div class="tc-bar lb-p1"></div><div class="tc-inner" onclick="tgl(this)">
+        <div class="tc-id-col"><div class="tc-id">TC-A11-03</div><div class="tc-pills"><span class="sp sp-figma">Stark</span></div></div>
+        <div class="tc-title">Tab focus order follows logical reading order through Citations Panel</div>
+        <div class="tc-badges"><span class="badge b-p1">P1</span><span class="badge b-jud">Judgment</span></div>
+      </div><div class="tc-chev">▼</div></div>
+      <div class="tc-body"><div class="tc-body-L">
+        <div class="tc-sec"><div class="tc-lbl">Steps</div><div class="tc-steps"><ol><li>Tab through entire Citations panel from first to last focusable element. Map order.</li></ol></div></div>
+      </div><div class="tc-body-R">
+        <div class="tc-sec"><div class="tc-lbl">Expected Result</div><div class="tc-exp">Logical order: style selector → citation list → per-item actions → footer (Copy all, Export, Add to Note). No focus traps. Skip link if list is long (Stark "Skip Text" annotation). No unexpected focus jumps.</div></div>
+        <div class="tc-note">Judgment — evaluated holistically per WCAG 2.4.3 Focus Order.</div>
+      </div></div>
+    </div>
+    <div class="tc-card" data-p="p1" data-t="det" data-new="false" data-fix="false" data-page="a11y" data-kw="Escape close in-text citation modal keyboard dismiss">
+      <div class="tc-head"><div class="tc-bar lb-p1"></div><div class="tc-inner" onclick="tgl(this)">
+        <div class="tc-id-col"><div class="tc-id">TC-A11-04</div><div class="tc-pills"><span class="sp sp-prd">PRD IT-6</span></div></div>
+        <div class="tc-title">In-text citation modal dismisses on Escape key, outside click, and × button</div>
+        <div class="tc-badges"><span class="badge b-p1">P1</span><span class="badge b-det">Deterministic</span></div>
+      </div><div class="tc-chev">▼</div></div>
+      <div class="tc-body"><div class="tc-body-L">
+        <div class="tc-prd">PRD IT-6 AC: Modal dismisses on Escape key press, click outside the modal, and via close button in modal header.</div>
+        <div class="tc-sec"><div class="tc-lbl">Steps</div><div class="tc-steps"><ol><li>Open in-text citation modal. Press Escape.</li><li>Reopen. Click outside modal boundary.</li><li>Reopen. Click × button in modal header.</li></ol></div></div>
+      </div><div class="tc-body-R">
+        <div class="tc-sec"><div class="tc-lbl">Expected Result</div><div class="tc-exp">All 3 methods dismiss the modal. Focus returns to the "In-text citation" button that opened it. No data loss (if locator was entered, it is preserved if user reopens).</div></div>
+      </div></div>
+    </div>
+    <div class="tc-card" data-p="p1" data-t="jud" data-new="false" data-fix="false" data-page="a11y" data-kw="screen reader aria labels buttons icon-only accessible name">
+      <div class="tc-head"><div class="tc-bar lb-p1"></div><div class="tc-inner" onclick="tgl(this)">
+        <div class="tc-id-col"><div class="tc-id">TC-A11-05</div><div class="tc-pills"><span class="sp sp-figma">Stark</span></div></div>
+        <div class="tc-title">Icon-only buttons in citation rows have accessible names (screen reader)</div>
+        <div class="tc-badges"><span class="badge b-p1">P1</span><span class="badge b-jud">Judgment</span></div>
+      </div><div class="tc-chev">▼</div></div>
+      <div class="tc-body"><div class="tc-body-L">
+        <div class="tc-sec"><div class="tc-lbl">Steps</div><div class="tc-steps"><ol><li>Enable VoiceOver / NVDA. Navigate to a citation row.</li><li>Focus copy icon, overflow ···, In-text citation button, delete icon.</li><li>Listen to announced labels.</li></ol></div></div>
+      </div><div class="tc-body-R">
+        <div class="tc-sec"><div class="tc-lbl">Expected Result</div><div class="tc-exp">Each icon-only button announces a descriptive label including the citation context (e.g. "Copy citation for Smith 2023", "More options for Smith 2023"). No button announces only "button" or a generic icon name.</div></div>
+        <div class="tc-note">Judgment — screen reader announcement quality assessed per WCAG 4.1.2.</div>
+      </div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════ SOURCES INTEGRATION ═══════════════ -->
+<div class="wiki-page" id="page-sources">
+  <div class="page-hdr">
+    <div class="breadcrumb"><a onclick="showPage('overview')">Wiki</a> › Sources Integration</div>
+    <h1 class="page-h1">🔗 Sources Panel Integration</h1>
+    <div class="page-meta"><div class="meta-chip">6 cases</div><span class="sp sp-all">All sources</span></div>
+  </div>
+  <div class="filter-bar"><span class="fl">Filter:</span>
+    <button class="fb active" onclick="fp('sources','all',this)">All <span class="fbc">6</span></button>
+    <button class="fb fp0" onclick="fp('sources','p0',this)">P0 <span class="fbc">3</span></button>
+    <button class="fb fp1" onclick="fp('sources','p1',this)">P1 <span class="fbc">2</span></button>
+    <button class="fb fp2" onclick="fp('sources','p2',this)">P2 <span class="fbc">1</span></button>
+    <button class="fb fnew" onclick="fp('sources','new',this)">NEW <span class="fbc">3</span></button>
+    <button class="fb ffix" onclick="fp('sources','fix',this)">CORRECTED <span class="fbc">1</span></button>
+  </div>
+  <div class="tc-list" id="tclist-sources">
+
+    <div class="tc-card" data-p="p0" data-t="det" data-new="false" data-fix="true" data-page="sources" data-kw="source hover citation popover formatted citation style label copy button annotation">
+      <div class="tc-head"><div class="tc-bar lb-p0"></div><div class="tc-inner" onclick="tgl(this)">
+        <div class="tc-id-col"><div class="tc-id">TC-SR-01</div><div class="tc-pills"><span class="sp sp-video">Video fr40</span><span class="sp sp-prd">PRD SP-3</span></div></div>
+        <div class="tc-title">Hovering source row with existing citation shows citation popover with formatted text + copy button</div>
+        <div class="tc-badges"><span class="badge b-p0">P0</span><span class="badge b-det">Deterministic</span><span class="badge b-fix">CORRECTED</span></div>
+      </div><div class="tc-chev">▼</div></div>
+      <div class="tc-body"><div class="tc-body-L">
+        <div class="tc-fix-note"><span>⚠</span><span>v1 said SP-3 opens a "lightweight citation modal". Video fr40 shows it is a <strong>popover</strong> (annotation-style overlay) that appears on hover — not a separate modal requiring a click. Title field used as popover heading; if no title, citation body text shown.</span></div>
+        <div class="tc-prd">PRD SP-3: "Opens a lightweight citation modal containing: the formatted citation in the current global style, a copy button, and a style indication."</div>
+        <div class="tc-sec"><div class="tc-lbl">Steps</div><div class="tc-steps"><ol><li>Sources panel, hover a source row that has a citation.</li></ol></div></div>
+      </div><div class="tc-body-R">
+        <div class="tc-sec"><div class="tc-lbl">Expected Result</div><div class="tc-exp">Popover appears on hover (annotation-style). Contains: source title as heading (or citation body if no title), full formatted citation text in current style, "APA 7th edition" style label, copy icon. Clicking copy: copies formatted citation text to clipboard. Popover uses annotation popover behaviour (video fr40 annotation: "On hover, citation popover appears. Title field is used on the top level. If no Title is available, only the citation body text is used.").</div></div>
+        <div class="tc-video">Video fr40: Popover shown on "Reality-Enhanced-The-Transformative-Power…" row. Contains "Citation / APA 7th edition ▾ / [copy icon]" header, then full APA text below.</div>
+      </div></div>
+    </div>
+
+    <div class="tc-card" data-p="p0" data-t="det" data-new="false" data-fix="false" data-page="sources" data-kw="cite this source uncited PDF trigger all un-cited sources extraction loading Edit Source Details modal">
+      <div class="tc-head"><div class="tc-bar lb-p0"></div><div class="tc-inner" onclick="tgl(this)">
+        <div class="tc-id-col"><div class="tc-id">TC-SR-02</div><div class="tc-pills"><span class="sp sp-prd">PRD SP-2</span></div></div>
+        <div class="tc-title">"Cite this source" on uncited PDF triggers extraction for ALL un-cited sources; opens Edit form pre-populated</div>
+        <div class="tc-badges"><span class="badge b-p0">P0</span><span class="badge b-det">Deterministic</span></div>
+      </div><div class="tc-chev">▼</div></div>
+      <div class="tc-body"><div class="tc-body-L">
+        <div class="tc-prd">PRD SP-2 AC: Triggers on-the-fly metadata extraction for ALL un-cited sources. Loading state shown. Once complete: Edit Source Details modal opens pre-populated with extracted metadata and AI-suggested source type.</div>
+        <div class="tc-sec"><div class="tc-lbl">Steps</div><div class="tc-steps"><ol><li>3 uncited sources. Click "Cite this source" on source A.</li><li>Observe loading state and which sources are processed.</li><li>Observe what opens after completion.</li></ol></div></div>
+      </div><div class="tc-body-R">
+        <div class="tc-sec"><div class="tc-lbl">Expected Result</div><div class="tc-exp">Extraction triggers for A, B, C. Loading state visible. After completion: Edit Source Details modal for source A opens with pre-populated Title, Author, Year, Type. "Uncertain" badges on AI-inferred fields. Saving adds citation to list and "Cite this source" icon updates for source A.</div></div>
+      </div></div>
+    </div>
+
+    <div class="tc-card" data-p="p0" data-t="det" data-new="true" data-fix="false" data-page="sources" data-kw="citation count link sources panel 1 citation 2 citations hotlink">
+      <div class="tc-head"><div class="tc-bar lb-p0"></div><div class="tc-inner" onclick="tgl(this)">
+        <div class="tc-id-col"><div class="tc-id">TC-SR-03</div><div class="tc-pills"><span class="sp sp-video">Video fr20</span></div></div>
+        <div class="tc-title">Source rows show citation count as a clickable link ("1 citation", "2 citations")</div>
+        <div class="tc-badges"><span class="badge b-p0">P0</span><span class="badge b-det">Deterministic</span><span class="badge b-new">NEW</span></div>
+      </div><div class="tc-chev">▼</div></div>
+      <div class="tc-body"><div class="tc-body-L">
+        <div class="tc-video">Video fr20: Sources panel shows source rows with "New · Added 12:39 PM · Brian" metadata. Bottom source row shows "Added yesterday · 2 citations · Brian" — "2 citations" is a hotlink. Arrow annotation points to it.</div>
+        <div class="tc-sec"><div class="tc-lbl">Steps</div><div class="tc-steps"><ol><li>Sources panel with source that has 2 citations.</li><li>Observe citation count label. Click it.</li></ol></div></div>
+      </div><div class="tc-body-R">
+        <div class="tc-sec"><div class="tc-lbl">Expected Result</div><div class="tc-exp">Source row shows "N citations" as a clickable link beneath the filename. Clicking the link opens the Citations panel (or citation popover) filtered to/highlighting citations for that source. "0 citations" rows show "Cite this source" button instead of a count link.</div></div>
+      </div></div>
+    </div>
+
+    <div class="tc-card" data-p="p1" data-t="det" data-new="true" data-fix="false" data-page="sources" data-kw="split view editing source document left citation form right draggable divider 25 75">
+      <div class="tc-head"><div class="tc-bar lb-p1"></div><div class="tc-inner" onclick="tgl(this)">
+        <div class="tc-id-col"><div class="tc-id">TC-SR-04</div><div class="tc-pills"><span class="sp sp-prd">PRD SV-1</span><span class="sp sp-video">Video fr5/12</span></div></div>
+        <div class="tc-title">Split-view: document left (25–75%), citation form right; draggable divider</div>
+        <div class="tc-badges"><span class="badge b-p1">P1</span><span class="badge b-det">Deterministic</span><span class="badge b-new">NEW</span></div>
+      </div><div class="tc-chev">▼</div></div>
+      <div class="tc-body"><div class="tc-body-L">
+        <div class="tc-prd">PRD SV-1 AC: Split view = source document left, citation edit form right. Draggable divider (25–75% range). Accessible from: "View source" button in lightweight citation modal, "Edit all" in review queue, passage result in in-text modal.</div>
+        <div class="tc-sec"><div class="tc-lbl">Steps</div><div class="tc-steps"><ol><li>Open split view from review queue "Edit all".</li><li>Drag divider to ~25% left / 75% right.</li><li>Drag divider to ~75% left / 25% right.</li></ol></div></div>
+      </div><div class="tc-body-R">
+        <div class="tc-sec"><div class="tc-lbl">Expected Result</div><div class="tc-exp">Split view renders: PDF document on left, citation edit form on right. Divider draggable within 25–75% range — cannot be dragged beyond these bounds. Dragging updates both panels in real time. After save, user is returned to the context that opened split view (review queue or main list).</div></div>
+      </div></div>
+    </div>
+
+    <div class="tc-card" data-p="p1" data-t="det" data-new="true" data-fix="false" data-page="sources" data-kw="save split view return originating context review queue main list">
+      <div class="tc-head"><div class="tc-bar lb-p1"></div><div class="tc-inner" onclick="tgl(this)">
+        <div class="tc-id-col"><div class="tc-id">TC-SR-05</div><div class="tc-pills"><span class="sp sp-prd">PRD SV-2</span></div></div>
+        <div class="tc-title">Saving from split-view returns user to originating context (review queue or main list)</div>
+        <div class="tc-badges"><span class="badge b-p1">P1</span><span class="badge b-det">Deterministic</span><span class="badge b-new">NEW</span></div>
+      </div><div class="tc-chev">▼</div></div>
+      <div class="tc-body"><div class="tc-body-L">
+        <div class="tc-prd">PRD SV-2: If triggered from review queue → saving returns to review queue. If triggered from main list or Sources page → returns to that context.</div>
+        <div class="tc-sec"><div class="tc-lbl">Steps</div><div class="tc-steps"><ol><li>Open split view from review queue. Edit. Save.</li><li>Open split view from main citations list. Edit. Save.</li></ol></div></div>
+      </div><div class="tc-body-R">
+        <div class="tc-sec"><div class="tc-lbl">Expected Result</div><div class="tc-exp">From review queue: returns to Review Citations screen after save. Changes reflected in review card. From main list: returns to Citations panel main list after save. Citation updated in place. No orphaned split-view state.</div></div>
+      </div></div>
+    </div>
+
+    <div class="tc-card" data-p="p2" data-t="det" data-new="false" data-fix="false" data-page="sources" data-kw="sources citations tab same data consistent regardless entry path tools sources">
+      <div class="tc-head"><div class="tc-bar lb-p2"></div><div class="tc-inner" onclick="tgl(this)">
+        <div class="tc-id-col"><div class="tc-id">TC-SR-06</div><div class="tc-pills"><span class="sp sp-prd">PRD How It Works</span></div></div>
+        <div class="tc-title">Citations panel data is consistent whether reached from Sources tab or Study Tools</div>
+        <div class="tc-badges"><span class="badge b-p2">P2</span><span class="badge b-det">Deterministic</span></div>
+      </div><div class="tc-chev">▼</div></div>
+      <div class="tc-body"><div class="tc-body-L">
+        <div class="tc-sec"><div class="tc-lbl">Steps</div><div class="tc-steps"><ol><li>Open Citations via Sources tab. Note citation count and first citation.</li><li>Close. Open via Study Tools. Compare.</li></ol></div></div>
+      </div><div class="tc-body-R">
+        <div class="tc-sec"><div class="tc-lbl">Expected Result</div><div class="tc-exp">Identical citation list regardless of entry path. Same count, same citations, same style selection. No stale cache between entry points.</div></div>
+      </div></div>
+    </div>
+
+  </div>
+</div>
+
+</main>
+
+<script>
+// PAGE NAV
+function showPage(id) {
+  document.querySelectorAll('.wiki-page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
+  const pg = document.getElementById('page-' + id);
+  if (pg) pg.classList.add('active');
+  document.querySelectorAll('.nav-item').forEach(item => {
+    if ((item.getAttribute('onclick') || '').includes("'" + id + "'")) item.classList.add('active');
+  });
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+
+// SIDEBAR TOGGLE
+function toggleNav(el) {
+  el.classList.toggle('open');
+  const items = el.nextElementSibling;
+  if (items) items.classList.toggle('open');
+}
+
+// CARD EXPAND
+function tgl(inner) {
+  const card = inner.closest('.tc-card');
+  const body = card.querySelector('.tc-body');
+  const chev = card.querySelector('.tc-chev');
+  const open = body.classList.contains('open');
+  body.classList.toggle('open', !open);
+  if (chev) chev.classList.toggle('open', !open);
+}
+
+// FILTER PER PAGE
+function fp(page, filter, btn) {
+  const list = document.getElementById('tclist-' + page);
+  if (!list) return;
+  list.closest('.wiki-page').querySelectorAll('.filter-bar .fb').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  list.querySelectorAll('.tc-card').forEach(card => {
+    if (filter === 'all') { card.classList.remove('hidden'); return; }
+    let show = false;
+    if (filter === 'p0' && card.dataset.p === 'p0') show = true;
+    if (filter === 'p1' && card.dataset.p === 'p1') show = true;
+    if (filter === 'p2' && card.dataset.p === 'p2') show = true;
+    if (filter === 'det' && card.dataset.t === 'det') show = true;
+    if (filter === 'jud' && card.dataset.t === 'jud') show = true;
+    if (filter === 'new' && card.dataset.new === 'true') show = true;
+    if (filter === 'fix' && card.dataset.fix === 'true') show = true;
+    card.classList.toggle('hidden', !show);
+  });
+}
+
+// GLOBAL SEARCH
+function globalSearch(q) {
+  if (!q || q.length < 2) {
+    document.querySelectorAll('.tc-card').forEach(c => c.classList.remove('hidden'));
+    return;
+  }
+  const lq = q.toLowerCase();
+  document.querySelectorAll('.tc-card').forEach(card => {
+    const txt = (card.dataset.kw || '') + ' ' + (card.querySelector('.tc-title') ? card.querySelector('.tc-title').textContent : '');
+    card.classList.toggle('hidden', !txt.toLowerCase().includes(lq));
+  });
+}
+
+// INIT
+document.querySelectorAll('.nav-section-title').forEach(el => {
+  el.classList.add('open');
+  if (el.nextElementSibling) el.nextElementSibling.classList.add('open');
+});
+</script>
+</body>
+</html>
